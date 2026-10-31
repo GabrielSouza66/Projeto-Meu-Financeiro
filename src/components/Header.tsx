@@ -9,7 +9,10 @@ import {
   CloudOff, 
   AlertOctagon,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw,
+  AlertCircle,
+  User
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { getAvailableMonths } from '../utils/finance';
@@ -26,6 +29,9 @@ export const Header: React.FC = () => {
     setIsExpenseModalOpen,
     setEditingTransaction,
     user,
+    syncNow,
+    syncStatus,
+    syncMessage,
   } = useFinance();
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -125,28 +131,61 @@ export const Header: React.FC = () => {
             </button>
 
             {/* Cloud Sync Status / Button */}
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              title={user ? `Logado como ${user.email}` : 'Conectar com a Nuvem'}
-              className={clsx(
-                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition',
-                user
-                  ? 'bg-slate-900 border-emerald-500/40 text-emerald-300'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
-              )}
-            >
-              {user ? (
-                <>
-                  <Cloud className="w-4 h-4 text-emerald-400" />
-                  <span className="hidden md:inline">Sincronizado</span>
-                </>
-              ) : (
-                <>
-                  <CloudOff className="w-4 h-4 text-slate-400" />
-                  <span className="hidden md:inline">Local</span>
-                </>
-              )}
-            </button>
+            {user ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => syncNow()}
+                  disabled={syncStatus === 'syncing'}
+                  title="Clique para sincronizar com a nuvem"
+                  className={clsx(
+                    'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition shadow-sm',
+                    syncStatus === 'syncing' && 'bg-amber-500/10 border-amber-500/40 text-amber-300 cursor-wait',
+                    syncStatus === 'synced' && 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300',
+                    syncStatus === 'error' && 'bg-rose-500/10 border-rose-500/40 text-rose-300',
+                    syncStatus === 'idle' && 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-emerald-500/40 active:scale-95'
+                  )}
+                >
+                  {syncStatus === 'syncing' ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                      <span className="hidden sm:inline">Sincronizando...</span>
+                    </>
+                  ) : syncStatus === 'synced' ? (
+                    <>
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="hidden sm:inline">Sincronizado</span>
+                    </>
+                  ) : syncStatus === 'error' ? (
+                    <>
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                      <span className="hidden sm:inline">Erro Sinc</span>
+                    </>
+                  ) : (
+                    <>
+                      <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="hidden sm:inline">Sincronizar</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
+                  title={`Conta: ${user.email} (Clique para gerenciar)`}
+                  className="p-2 text-slate-400 hover:text-white bg-slate-900 border border-slate-800 rounded-xl hover:border-slate-700 transition"
+                >
+                  <User className="w-4 h-4 text-emerald-400" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                title="Conectar com a Nuvem (Supabase)"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 active:scale-95"
+              >
+                <CloudOff className="w-3.5 h-3.5 text-slate-400" />
+                <span className="hidden sm:inline">Conectar Nuvem</span>
+              </button>
+            )}
 
             {/* Theme Toggle */}
             <button
@@ -158,6 +197,25 @@ export const Header: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Global Floating Toast / Notification */}
+        {syncStatus !== 'idle' && (
+          <div className="fixed top-18 right-4 sm:right-8 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div
+              className={clsx(
+                'px-4 py-2.5 rounded-2xl shadow-2xl border text-xs sm:text-sm font-bold flex items-center gap-2.5 backdrop-blur-xl',
+                syncStatus === 'synced' && 'bg-slate-950/95 text-emerald-300 border-emerald-500/50 shadow-emerald-950/40',
+                syncStatus === 'error' && 'bg-slate-950/95 text-rose-300 border-rose-500/50 shadow-rose-950/40',
+                syncStatus === 'syncing' && 'bg-slate-950/95 text-amber-300 border-amber-500/50 shadow-amber-950/40'
+              )}
+            >
+              {syncStatus === 'synced' && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />}
+              {syncStatus === 'error' && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />}
+              {syncStatus === 'syncing' && <RefreshCw className="w-4 h-4 text-amber-400 animate-spin shrink-0" />}
+              <span>{syncMessage}</span>
+            </div>
+          </div>
+        )}
       </header>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />

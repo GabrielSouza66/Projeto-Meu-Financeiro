@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, Cloud, CheckCircle, AlertCircle, LogOut } from 'lucide-react';
+import { X, Mail, Lock, Cloud, CheckCircle, AlertCircle, LogOut, RefreshCw } from 'lucide-react';
 import { getSupabaseClient } from '../services/supabase';
 import { useFinance } from '../context/FinanceContext';
+import clsx from 'clsx';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -9,7 +10,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const { user, isCloudConfigured, syncNow } = useFinance();
+  const { user, isCloudConfigured, syncNow, syncStatus, syncMessage } = useFinance();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -110,15 +111,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 <p className="text-xs text-slate-500 mt-0.5">Seus dados estão sincronizados com segurança</p>
               </div>
 
-              <div className="pt-2 flex flex-col gap-2">
+              <div className="pt-2 flex flex-col gap-2.5">
                 <button
+                  disabled={syncStatus === 'syncing'}
                   onClick={async () => {
                     await syncNow();
                   }}
-                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition"
+                  className={clsx(
+                    'w-full py-2.5 text-white font-bold rounded-xl text-sm transition flex items-center justify-center gap-2 shadow',
+                    syncStatus === 'syncing'
+                      ? 'bg-amber-600/80 cursor-wait'
+                      : 'bg-emerald-600 hover:bg-emerald-500 active:scale-98'
+                  )}
                 >
-                  Sincronizar Agora
+                  <RefreshCw className={clsx('w-4 h-4', syncStatus === 'syncing' && 'animate-spin')} />
+                  <span>{syncStatus === 'syncing' ? 'Sincronizando com o banco...' : 'Sincronizar Agora'}</span>
                 </button>
+
+                {/* Status Feedback Notification */}
+                {syncMessage && (
+                  <div
+                    className={clsx(
+                      'p-3 rounded-xl text-xs font-semibold flex items-center gap-2.5 text-left transition border',
+                      syncStatus === 'synced' && 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+                      syncStatus === 'error' && 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+                      syncStatus === 'syncing' && 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    )}
+                  >
+                    {syncStatus === 'synced' && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />}
+                    {syncStatus === 'error' && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />}
+                    {syncStatus === 'syncing' && <RefreshCw className="w-4 h-4 text-amber-400 animate-spin shrink-0" />}
+                    <span className="leading-snug">{syncMessage}</span>
+                  </div>
+                )}
+
                 <button
                   onClick={handleSignOut}
                   className="w-full py-2.5 bg-slate-800 hover:bg-rose-950/60 hover:text-rose-400 text-slate-300 font-semibold rounded-xl text-sm transition flex items-center justify-center gap-2 border border-slate-700"

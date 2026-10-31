@@ -1,5 +1,20 @@
 import type { Transaction, SalaryInfo, MonthlySummary, PredefinedAccount, CreditCardInfo } from '../types/finance';
 
+export const isUUID = (str: string): boolean => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+};
+
+export const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -73,6 +88,14 @@ export const PREDEFINED_FIXED_ACCOUNTS: PredefinedAccount[] = [
 export const PREDEFINED_CARD_ACCOUNTS: PredefinedAccount[] = [
   'Cartão Inter',
   'Cartão Nubank',
+];
+
+export const PREDEFINED_OTHER_ACCOUNTS: PredefinedAccount[] = [
+  'Luz',
+  'Água',
+  'Aluguel',
+  'Mercado',
+  'Outro',
 ];
 
 export const DEFAULT_CREDIT_CARDS: CreditCardInfo[] = [

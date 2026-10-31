@@ -6,14 +6,29 @@ const STORAGE_KEYS = {
 };
 
 export const getStoredSupabaseConfig = () => {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL;
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+  const envKey = (
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    ''
+  ).trim();
 
-  const localUrl = localStorage.getItem(STORAGE_KEYS.SUPABASE_URL);
-  const localKey = localStorage.getItem(STORAGE_KEYS.SUPABASE_ANON_KEY);
+  let localUrl = (localStorage.getItem(STORAGE_KEYS.SUPABASE_URL) || '').trim();
+  let localKey = (localStorage.getItem(STORAGE_KEYS.SUPABASE_ANON_KEY) || '').trim();
 
-  const url = localUrl || envUrl || '';
-  const anonKey = localKey || envKey || '';
+  // Auto-cleanup: if localStorage has obsolete or misconfigured keys (e.g. secret key or publishable key in URL), remove them
+  if (localUrl.includes('sb_publishable_') || localUrl.includes('sb_secret_')) {
+    localStorage.removeItem(STORAGE_KEYS.SUPABASE_URL);
+    localUrl = '';
+  }
+  if (localKey.startsWith('sb_secret_')) {
+    localStorage.removeItem(STORAGE_KEYS.SUPABASE_ANON_KEY);
+    localKey = '';
+  }
+
+  // URL prioritizing valid value, sanitized (no trailing slash)
+  let url = (localUrl || envUrl || '').replace(/\/+$/, '');
+  let anonKey = localKey || envKey || '';
 
   return { url, anonKey };
 };
@@ -41,6 +56,18 @@ export const getSupabaseClient = (): SupabaseClient | null => {
 
   if (!url || !anonKey) {
     return null;
+  }
+
+  if (anonKey.startsWith('sb_secret_')) {
+    console.error(
+      '⚠️ [Supabase] ATENÇÃO: Foi configurada uma chave secreta ("sb_secret_..."). No frontend, utilize sempre a chave pública ("sb_publishable_..." ou "anon" que começa com "eyJ..."). A Secret Key nunca deve ser exposta no navegador!'
+    );
+  }
+
+  if (url.includes('sb_publishable_') || url.includes('sb_secret_')) {
+    console.error(
+      '⚠️ [Supabase] ATENÇÃO: A URL informada parece conter uma chave API. A URL do projeto deve ser no formato: https://<project-ref>.supabase.co (encontrada em Project Settings > API no Supabase).'
+    );
   }
 
   if (cachedClient && cachedUrl === url && cachedKey === anonKey) {

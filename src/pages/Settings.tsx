@@ -8,11 +8,13 @@ import {
   Upload, 
   RotateCcw, 
   Check, 
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { getStoredSupabaseConfig, saveSupabaseConfig } from '../services/supabase';
 import { AuthModal } from '../components/AuthModal';
+import clsx from 'clsx';
 
 export const Settings: React.FC = () => {
   const {
@@ -23,6 +25,8 @@ export const Settings: React.FC = () => {
     salaries,
     cards,
     user,
+    syncNow,
+    syncStatus,
   } = useFinance();
 
   const [supabaseUrl, setSupabaseUrl] = useState('');
@@ -188,12 +192,24 @@ export const Settings: React.FC = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => setIsAuthModalOpen(true)}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow shrink-0"
-          >
-            {user ? 'Gerenciar Conta' : 'Fazer Login / Cadastro'}
-          </button>
+          <div className="flex items-center gap-2">
+            {user && (
+              <button
+                onClick={() => syncNow()}
+                disabled={syncStatus === 'syncing'}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+              >
+                <RefreshCw className={clsx('w-3.5 h-3.5', syncStatus === 'syncing' && 'animate-spin')} />
+                <span>{syncStatus === 'syncing' ? 'Sincronizando...' : 'Sincronizar Agora'}</span>
+              </button>
+            )}
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow shrink-0"
+            >
+              {user ? 'Gerenciar Conta' : 'Fazer Login / Cadastro'}
+            </button>
+          </div>
         </div>
 
         {/* Credentials Form */}
@@ -206,23 +222,33 @@ export const Settings: React.FC = () => {
               <input
                 type="text"
                 value={supabaseUrl}
-                onChange={(e) => setSupabaseUrl(e.target.value)}
-                placeholder="https://xyzcompany.supabase.co"
+                onChange={(e) => setSupabaseUrl(e.target.value.trim())}
+                placeholder="https://xyzabcdefghijklmnop.supabase.co"
                 className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
               />
+              {supabaseUrl.includes('sb_publishable_') && (
+                <p className="text-[11px] text-amber-400 mt-1">
+                  ⚠️ Parece que você colou a chave publishable na URL. A URL correta tem o formato <code className="bg-slate-900 px-1 rounded">https://&lt;id-do-projeto&gt;.supabase.co</code> (disponível em Project Settings &gt; API).
+                </p>
+              )}
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                Anon Public Key do Supabase
+                Chave Pública (Publishable Key ou Anon)
               </label>
               <input
-                type="password"
+                type="text"
                 value={supabaseAnonKey}
-                onChange={(e) => setSupabaseAnonKey(e.target.value)}
-                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+                onChange={(e) => setSupabaseAnonKey(e.target.value.trim())}
+                placeholder="sb_publishable_... ou eyJhbGci..."
                 className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
               />
+              {supabaseAnonKey.startsWith('sb_secret_') && (
+                <p className="text-[11px] text-rose-400 mt-1">
+                  🚨 <strong>Cuidado:</strong> Você inseriu a <strong>Secret Key</strong> (<code className="bg-slate-900 px-1 rounded">sb_secret_...</code>). Para o navegador, utilize a chave pública (<code className="bg-slate-900 px-1 rounded">sb_publishable_...</code> ou a antiga <code className="bg-slate-900 px-1 rounded">anon</code>).
+                </p>
+              )}
             </div>
           </div>
 

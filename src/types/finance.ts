@@ -7,8 +7,13 @@ export type PredefinedAccount =
   | 'Seguro Moto' 
   | 'Cartão Inter' 
   | 'Cartão Nubank' 
+  | 'Luz'
+  | 'Água'
+  | 'Aluguel'
+  | 'Mercado'
   | 'Salário'
-  | 'Outro';
+  | 'Outro'
+  | string;
 
 export type PaymentStatus = 'pending' | 'paid' | 'overdue';
 

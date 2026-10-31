@@ -1,8 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { X, Tag, Check, CreditCard, Shield, Wifi, Smartphone } from 'lucide-react';
+import { 
+  X, 
+  Check, 
+  CreditCard, 
+  Shield, 
+  Wifi, 
+  Smartphone, 
+  Zap, 
+  Droplets, 
+  Home, 
+  ShoppingBag, 
+  MoreHorizontal 
+} from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import type { PredefinedAccount, AccountCategory, PaymentStatus } from '../types/finance';
-import { PREDEFINED_FIXED_ACCOUNTS, PREDEFINED_CARD_ACCOUNTS, getAvailableMonths } from '../utils/finance';
+import { 
+  PREDEFINED_FIXED_ACCOUNTS, 
+  PREDEFINED_CARD_ACCOUNTS, 
+  PREDEFINED_OTHER_ACCOUNTS, 
+  getAvailableMonths 
+} from '../utils/finance';
 import clsx from 'clsx';
 
 export const ExpenseModal: React.FC = () => {
@@ -70,6 +87,11 @@ export const ExpenseModal: React.FC = () => {
       else if (acc === 'Seguro Moto') setTitle('Seguro da Moto');
       else if (acc === 'Cartão Inter') setTitle('Fatura Cartão Inter');
       else if (acc === 'Cartão Nubank') setTitle('Fatura Nubank');
+      else if (acc === 'Luz') setTitle('Conta de Luz / Energia');
+      else if (acc === 'Água') setTitle('Conta de Água / Saneamento');
+      else if (acc === 'Aluguel') setTitle('Aluguel / Condomínio');
+      else if (acc === 'Mercado') setTitle('Compras de Supermercado');
+      else if (acc === 'Outro') setTitle('');
     }
   };
 
@@ -117,7 +139,12 @@ export const ExpenseModal: React.FC = () => {
       case 'Seguro Moto': return <Shield className="w-4 h-4" />;
       case 'Cartão Inter':
       case 'Cartão Nubank': return <CreditCard className="w-4 h-4" />;
-      default: return <Tag className="w-4 h-4" />;
+      case 'Luz': return <Zap className="w-4 h-4 text-amber-400" />;
+      case 'Água': return <Droplets className="w-4 h-4 text-cyan-400" />;
+      case 'Aluguel': return <Home className="w-4 h-4 text-blue-400" />;
+      case 'Mercado': return <ShoppingBag className="w-4 h-4 text-rose-400" />;
+      case 'Outro':
+      default: return <MoreHorizontal className="w-4 h-4 text-indigo-400" />;
     }
   };
 
@@ -197,6 +224,71 @@ export const ExpenseModal: React.FC = () => {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <span className="text-[11px] text-slate-400 block mb-1">Outras Contas & Despesas:</span>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {PREDEFINED_OTHER_ACCOUNTS.map((acc) => (
+                    <button
+                      key={acc}
+                      type="button"
+                      onClick={() => handleSelectQuickAccount(acc)}
+                      className={clsx(
+                        'flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition border text-left',
+                        accountType === acc
+                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-900/40'
+                          : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-700/80'
+                      )}
+                    >
+                      {getAccountIcon(acc)}
+                      <span className="truncate">{acc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Category / Tipo de Despesa */}
+            <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80">
+              <span className="text-[11px] font-bold text-slate-400 uppercase">Classificação da Conta:</span>
+              <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setCategory('fixed')}
+                  className={clsx(
+                    'px-2.5 py-1 text-xs font-semibold rounded-lg transition',
+                    category === 'fixed'
+                      ? 'bg-emerald-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  )}
+                >
+                  Fixa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategory('card')}
+                  className={clsx(
+                    'px-2.5 py-1 text-xs font-semibold rounded-lg transition',
+                    category === 'card'
+                      ? 'bg-purple-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  )}
+                >
+                  Cartão
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategory('variable')}
+                  className={clsx(
+                    'px-2.5 py-1 text-xs font-semibold rounded-lg transition',
+                    category === 'variable'
+                      ? 'bg-indigo-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  )}
+                >
+                  Variável / Outros
+                </button>
               </div>
             </div>
           </div>

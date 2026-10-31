@@ -7,7 +7,8 @@ import {
   getDefaultSalary, 
   getDefaultTransactions,
   PREDEFINED_FIXED_ACCOUNTS,
-  DEFAULT_CREDIT_CARDS
+  DEFAULT_CREDIT_CARDS,
+  generateUUID
 } from '../utils/finance';
 import {
   loadStoredTransactions,
@@ -152,28 +153,90 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   const addTransaction = (txData: Omit<Transaction, 'id' | 'created_at'>) => {
     const newTx: Transaction = {
       ...txData,
-      id: 'tx-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      id: generateUUID(),
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      user_id: user?.id,
     };
     setTransactions((prev) => [newTx, ...prev]);
+
+    // Background sync to cloud if user is logged in
+    if (user) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase
+          .from('transactions')
+          .insert([{
+            id: newTx.id,
+            user_id: user.id,
+            title: newTx.title,
+            category: newTx.category,
+            account_type: newTx.account_type,
+            amount: Number(newTx.amount) || 0,
+            due_date: newTx.due_date,
+            month_ref: newTx.month_ref,
+            status: newTx.status,
+            notes: newTx.notes || null,
+            created_at: newTx.created_at,
+            updated_at: newTx.updated_at,
+          }])
+          .then(({ error }) => {
+            if (error) console.error('Erro ao salvar lançamento no Supabase:', error);
+          });
+      }
+    }
   };
 
   const updateTransaction = (id: string, updates: Partial<Transaction>) => {
+    const now = new Date().toISOString();
     setTransactions((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t))
+      prev.map((t) => (t.id === id ? { ...t, ...updates, updated_at: now } : t))
     );
+
+    if (user) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const payload: any = { ...updates, updated_at: now };
+        delete payload.id;
+        delete payload.user_id;
+        supabase
+          .from('transactions')
+          .update(payload)
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .then(({ error }) => {
+            if (error) console.error('Erro ao atualizar lançamento no Supabase:', error);
+          });
+      }
+    }
   };
 
   const deleteTransaction = (id: string) => {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
+
+    if (user) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase
+          .from('transactions')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .then(({ error }) => {
+            if (error) console.error('Erro ao remover lançamento do Supabase:', error);
+          });
+      }
+    }
   };
 
   const togglePaymentStatus = (id: string) => {
+    let nextStatus: PaymentStatus = 'pending';
+    let isPaying = false;
+
     setTransactions((prev) => {
-      let isPaying = false;
       const updated: Transaction[] = prev.map((t) => {
         if (t.id === id) {
-          const nextStatus: PaymentStatus = t.status === 'paid' ? 'pending' : 'paid';
+          nextStatus = t.status === 'paid' ? 'pending' : 'paid';
           if (nextStatus === 'paid') isPaying = true;
           return { ...t, status: nextStatus, updated_at: new Date().toISOString() };
         }
@@ -193,20 +256,64 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       return updated;
     });
+
+    if (user) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase
+          .from('transactions')
+          .update({ status: nextStatus, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .then(({ error }) => {
+            if (error) console.error('Erro ao atualizar status no Supabase:', error);
+          });
+      }
+    }
   };
 
   const updateSalary = (monthRef: string, updates: Partial<SalaryInfo>) => {
+    let updatedRecord: SalaryInfo = {
+      ...getDefaultSalary(monthRef),
+      ...updates,
+      month_ref: monthRef,
+    };
+
     setSalaries((prev) => {
       const existing = prev[monthRef] || getDefaultSalary(monthRef);
+      updatedRecord = {
+        ...existing,
+        ...updates,
+        month_ref: monthRef,
+      };
       return {
         ...prev,
-        [monthRef]: {
-          ...existing,
-          ...updates,
-          month_ref: monthRef,
-        },
+        [monthRef]: updatedRecord,
       };
     });
+
+    if (user) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase
+          .from('salary_records')
+          .upsert(
+            {
+              user_id: user.id,
+              month_ref: monthRef,
+              base_salary: Number(updatedRecord.base_salary) || 0,
+              extra_income: Number(updatedRecord.extra_income) || 0,
+              payday: Number(updatedRecord.payday) || 5,
+              notes: updatedRecord.notes || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,month_ref' }
+          )
+          .then(({ error }) => {
+            if (error) console.error('Erro ao salvar salário no Supabase:', error);
+          });
+      }
+    }
   };
 
   const generateFixedBillsForMonth = (targetMonth: string) => {
@@ -228,7 +335,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
         const lastKnown = pastFixed.find((p) => p.account_type === accountType);
         const day = 10 + index * 4;
         newItems.push({
-          id: `fixed-${Date.now()}-${index}`,
+          id: generateUUID(),
           title: lastKnown?.title || accountType,
           category: 'fixed',
           account_type: accountType,
@@ -238,12 +345,42 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
           status: 'pending',
           notes: 'Gerado automaticamente do modelo fixo',
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user_id: user?.id,
         });
       }
     });
 
     if (newItems.length > 0) {
       setTransactions((prev) => [...newItems, ...prev]);
+
+      // If user is logged in, immediately push new fixed items to Supabase
+      if (user) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          const toInsert = newItems.map((item) => ({
+            id: item.id,
+            user_id: user.id,
+            title: item.title,
+            category: item.category,
+            account_type: item.account_type,
+            amount: item.amount,
+            due_date: item.due_date,
+            month_ref: item.month_ref,
+            status: item.status,
+            notes: item.notes,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+          }));
+
+          supabase
+            .from('transactions')
+            .upsert(toInsert)
+            .then(({ error }) => {
+              if (error) console.error('Erro ao salvar contas fixas geradas no Supabase:', error);
+            });
+        }
+      }
     }
   };
 
@@ -266,6 +403,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!user) {
       setSyncStatus('error');
       setSyncMessage('Faça login com e-mail para sincronizar na nuvem.');
+      setTimeout(() => setSyncStatus('idle'), 4000);
       return;
     }
 
@@ -277,11 +415,12 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
       if (result.transactions) setTransactions(result.transactions);
       if (result.salaries) setSalaries(result.salaries);
       setSyncStatus('synced');
-      setSyncMessage('Sincronizado com sucesso!');
-      setTimeout(() => setSyncStatus('idle'), 4000);
+      setSyncMessage(result.message);
+      setTimeout(() => setSyncStatus('idle'), 5000);
     } else {
       setSyncStatus('error');
       setSyncMessage(result.message);
+      setTimeout(() => setSyncStatus('idle'), 6000);
     }
   };
 

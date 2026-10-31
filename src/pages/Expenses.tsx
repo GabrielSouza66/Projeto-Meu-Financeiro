@@ -12,7 +12,12 @@ import {
   Smartphone, 
   CreditCard,
   RefreshCw,
-  Calendar
+  Calendar,
+  Zap,
+  Droplets,
+  Home,
+  ShoppingBag,
+  MoreHorizontal
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDateBR, formatMonthRef } from '../utils/finance';
@@ -31,7 +36,7 @@ export const Expenses: React.FC = () => {
     summary,
   } = useFinance();
 
-  const [activeFilter, setActiveFilter] = useState<'all' | 'fixed' | 'card' | 'pending' | 'paid'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'fixed' | 'card' | 'other' | 'pending' | 'paid'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Filtering
@@ -39,6 +44,7 @@ export const Expenses: React.FC = () => {
     // Filter tabs
     if (activeFilter === 'fixed' && tx.category !== 'fixed') return false;
     if (activeFilter === 'card' && tx.category !== 'card') return false;
+    if (activeFilter === 'other' && tx.category !== 'variable' && tx.category !== 'extra' && tx.account_type !== 'Outro') return false;
     if (activeFilter === 'pending' && tx.status !== 'pending') return false;
     if (activeFilter === 'paid' && tx.status !== 'paid') return false;
 
@@ -62,7 +68,15 @@ export const Expenses: React.FC = () => {
       case 'Seguro Moto': return <Shield className="w-4 h-4 text-sky-400" />;
       case 'Cartão Inter': return <CreditCard className="w-4 h-4 text-orange-400" />;
       case 'Cartão Nubank': return <CreditCard className="w-4 h-4 text-purple-400" />;
-      default: return <Receipt className="w-4 h-4 text-slate-400" />;
+      case 'Luz':
+      case 'Energia': return <Zap className="w-4 h-4 text-amber-400" />;
+      case 'Água': return <Droplets className="w-4 h-4 text-cyan-400" />;
+      case 'Aluguel':
+      case 'Condomínio': return <Home className="w-4 h-4 text-blue-400" />;
+      case 'Mercado': return <ShoppingBag className="w-4 h-4 text-rose-400" />;
+      case 'Outro':
+      case 'Outros':
+      default: return <MoreHorizontal className="w-4 h-4 text-indigo-400" />;
     }
   };
 
@@ -144,6 +158,7 @@ export const Expenses: React.FC = () => {
             { id: 'all', label: `Todas (${monthTransactions.length})` },
             { id: 'fixed', label: 'Fixas' },
             { id: 'card', label: 'Cartões' },
+            { id: 'other', label: 'Outras' },
             { id: 'pending', label: 'Pendentes' },
             { id: 'paid', label: 'Pagas' },
           ].map((tab) => (
@@ -212,6 +227,8 @@ export const Expenses: React.FC = () => {
                       ? tx.account_type === 'Cartão Inter'
                         ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                         : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                      : tx.account_type === 'Outro' || tx.category === 'variable'
+                      ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
                       : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                   }`}
                 >
@@ -227,10 +244,10 @@ export const Expenses: React.FC = () => {
                           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                           : tx.category === 'card'
                           ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                          : 'bg-slate-800 text-slate-300'
+                          : 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
                       }`}
                     >
-                      {tx.category === 'fixed' ? 'Fixa' : tx.category === 'card' ? 'Cartão' : 'Variável'}
+                      {tx.category === 'fixed' ? 'Fixa' : tx.category === 'card' ? 'Cartão' : 'Outros'}
                     </span>
                   </div>
 

@@ -11,7 +11,12 @@ import {
   Smartphone, 
   ChevronRight, 
   RefreshCw, 
-  PiggyBank 
+  PiggyBank,
+  Zap,
+  Droplets,
+  Home,
+  ShoppingBag,
+  MoreHorizontal
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { FinanceCard } from '../components/FinanceCard';
@@ -77,7 +82,15 @@ export const Dashboard: React.FC = () => {
       case 'Seguro Moto': return <Shield className="w-4 h-4 text-sky-400" />;
       case 'Cartão Inter': return <CreditCard className="w-4 h-4 text-orange-400" />;
       case 'Cartão Nubank': return <CreditCard className="w-4 h-4 text-purple-400" />;
-      default: return <Wallet className="w-4 h-4 text-slate-400" />;
+      case 'Luz':
+      case 'Energia': return <Zap className="w-4 h-4 text-amber-400" />;
+      case 'Água': return <Droplets className="w-4 h-4 text-cyan-400" />;
+      case 'Aluguel':
+      case 'Condomínio': return <Home className="w-4 h-4 text-blue-400" />;
+      case 'Mercado': return <ShoppingBag className="w-4 h-4 text-rose-400" />;
+      case 'Outro':
+      case 'Outros':
+      default: return <MoreHorizontal className="w-4 h-4 text-indigo-400" />;
     }
   };
 
