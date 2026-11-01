@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from 'react';
 import confetti from 'canvas-confetti';
-import type { Transaction, SalaryInfo, CreditCardInfo, MonthlySummary, PaymentStatus } from '../types/finance';
+import type { 
+  Transaction, 
+  SalaryInfo, 
+  CreditCardInfo, 
+  MonthlySummary, 
+  PaymentStatus,
+  FixedBillTemplate 
+} from '../types/finance';
 import { 
   getCurrentMonthRef, 
   calculateSummary, 
@@ -8,6 +15,7 @@ import {
   getDefaultTransactions,
   PREDEFINED_FIXED_ACCOUNTS,
   DEFAULT_CREDIT_CARDS,
+  DEFAULT_FIXED_BILLS_TEMPLATES,
   generateUUID
 } from '../utils/finance';
 import {
@@ -17,6 +25,8 @@ import {
   saveStoredSalaries,
   loadStoredCards,
   saveStoredCards,
+  loadStoredFixedTemplates,
+  saveStoredFixedTemplates,
   syncWithCloud,
 } from '../services/storage';
 import { getSupabaseClient, getStoredSupabaseConfig } from '../services/supabase';
@@ -29,6 +39,13 @@ interface FinanceContextType {
   salaries: Record<string, SalaryInfo>;
   currentSalary: SalaryInfo;
   cards: CreditCardInfo[];
+  addCard: (card: Omit<CreditCardInfo, 'id'>) => void;
+  updateCard: (id: string, updates: Partial<CreditCardInfo>) => void;
+  deleteCard: (id: string) => void;
+  fixedTemplates: FixedBillTemplate[];
+  addFixedTemplate: (tpl: Omit<FixedBillTemplate, 'id'>) => void;
+  updateFixedTemplate: (id: string, updates: Partial<FixedBillTemplate>) => void;
+  deleteFixedTemplate: (id: string) => void;
   summary: MonthlySummary;
   addTransaction: (tx: Omit<Transaction, 'id' | 'created_at'>) => void;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
@@ -59,6 +76,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [transactions, setTransactions] = useState<Transaction[]>(loadStoredTransactions);
   const [salaries, setSalaries] = useState<Record<string, SalaryInfo>>(loadStoredSalaries);
   const [cards, setCards] = useState<CreditCardInfo[]>(loadStoredCards);
+  const [fixedTemplates, setFixedTemplates] = useState<FixedBillTemplate[]>(loadStoredFixedTemplates);
   
   // Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -106,6 +124,10 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     saveStoredCards(cards);
   }, [cards]);
+
+  useEffect(() => {
+    saveStoredFixedTemplates(fixedTemplates);
+  }, [fixedTemplates]);
 
   // Check Supabase Auth session on mount
   useEffect(() => {
@@ -316,34 +338,127 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  // Card actions
+  const addCard = (cardData: Omit<CreditCardInfo, 'id'>) => {
+    const newCard: CreditCardInfo = {
+      ...cardData,
+      id: generateUUID(),
+      user_id: user?.id,
+    };
+    setCards((prev) => [...prev, newCard]);
+
+    if (user) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase
+          .from('credit_cards')
+          .insert([{
+            id: newCard.id,
+            user_id: user.id,
+            name: newCard.name,
+            brand: newCard.brand || 'Outro',
+            closing_day: Number(newCard.closing_day) || 15,
+            due_day: Number(newCard.due_day) || 22,
+            limit_amount: Number(newCard.limit_amount) || 0,
+            color: newCard.color || '#8a05be',
+          }])
+          .then(({ error }) => {
+            if (error) console.error('Erro ao salvar cartão no Supabase:', error);
+          });
+      }
+    }
+  };
+
+  const updateCard = (id: string, updates: Partial<CreditCardInfo>) => {
+    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
+
+    if (user) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase
+          .from('credit_cards')
+          .update(updates)
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .then(({ error }) => {
+            if (error) console.error('Erro ao atualizar cartão no Supabase:', error);
+          });
+      }
+    }
+  };
+
+  const deleteCard = (id: string) => {
+    setCards((prev) => prev.filter((c) => c.id !== id));
+
+    if (user) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase
+          .from('credit_cards')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .then(({ error }) => {
+            if (error) console.error('Erro ao excluir cartão no Supabase:', error);
+          });
+      }
+    }
+  };
+
+  // Fixed Templates actions
+  const addFixedTemplate = (tplData: Omit<FixedBillTemplate, 'id'>) => {
+    const newTpl: FixedBillTemplate = {
+      ...tplData,
+      id: generateUUID(),
+    };
+    setFixedTemplates((prev) => [...prev, newTpl]);
+  };
+
+  const updateFixedTemplate = (id: string, updates: Partial<FixedBillTemplate>) => {
+    setFixedTemplates((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+  };
+
+  const deleteFixedTemplate = (id: string) => {
+    setFixedTemplates((prev) => prev.filter((t) => t.id !== id));
+  };
+
   const generateFixedBillsForMonth = (targetMonth: string) => {
     const existingFixed = transactions.filter(
       (t) => t.month_ref === targetMonth && t.category === 'fixed'
     );
-    const existingTitles = new Set(existingFixed.map((t) => t.account_type));
+    const [year, month] = targetMonth.split('-');
+    const newItems: Transaction[] = [];
 
-    // Find the most recent fixed accounts from any month to copy their values
+    // Find the most recent fixed accounts from any month to copy their values if available
     const pastFixed = transactions
       .filter((t) => t.category === 'fixed')
       .reverse();
 
-    const [year, month] = targetMonth.split('-');
-    const newItems: Transaction[] = [];
+    fixedTemplates.forEach((tpl) => {
+      const alreadyExists = existingFixed.some(
+        (t) =>
+          t.title.trim().toLowerCase() === tpl.title.trim().toLowerCase() ||
+          (tpl.account_type && t.account_type.trim().toLowerCase() === tpl.account_type.trim().toLowerCase())
+      );
 
-    PREDEFINED_FIXED_ACCOUNTS.forEach((accountType, index) => {
-      if (!existingTitles.has(accountType)) {
-        const lastKnown = pastFixed.find((p) => p.account_type === accountType);
-        const day = 10 + index * 4;
+      if (!alreadyExists) {
+        const lastKnown = pastFixed.find(
+          (p) =>
+            p.title.trim().toLowerCase() === tpl.title.trim().toLowerCase() ||
+            (tpl.account_type && p.account_type.trim().toLowerCase() === tpl.account_type.trim().toLowerCase())
+        );
+
+        const day = Math.min(Math.max(Number(tpl.due_day) || 10, 1), 28);
         newItems.push({
           id: generateUUID(),
-          title: lastKnown?.title || accountType,
+          title: tpl.title,
           category: 'fixed',
-          account_type: accountType,
-          amount: lastKnown?.amount || (accountType === 'Internet' ? 120 : accountType === 'Celular' ? 60 : accountType === 'Seguro Carro' ? 250 : 150),
+          account_type: tpl.account_type || tpl.title,
+          amount: lastKnown?.amount || Number(tpl.default_amount) || 0,
           due_date: `${year}-${month}-${String(day).padStart(2, '0')}`,
           month_ref: targetMonth,
           status: 'pending',
-          notes: 'Gerado automaticamente do modelo fixo',
+          notes: 'Gerado a partir do seu modelo de contas fixas',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           user_id: user?.id,
@@ -397,6 +512,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     setTransactions(defaultTx);
     setSalaries(defaultSal);
     setCards(DEFAULT_CREDIT_CARDS);
+    setFixedTemplates(DEFAULT_FIXED_BILLS_TEMPLATES);
   };
 
   const syncNow = async () => {
@@ -434,6 +550,13 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
         salaries,
         currentSalary,
         cards,
+        addCard,
+        updateCard,
+        deleteCard,
+        fixedTemplates,
+        addFixedTemplate,
+        updateFixedTemplate,
+        deleteFixedTemplate,
         summary,
         addTransaction,
         updateTransaction,

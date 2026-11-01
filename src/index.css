@@ -78,3 +78,150 @@
 .card-glow-yellow {
   box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.2);
 }
+
+/* ==========================================================================
+   LIGHT MODE OVERRIDES
+   Permite alternância instantânea e impecável entre Dark Premium e Light Clean
+   ========================================================================== */
+html.light {
+  color-scheme: light;
+}
+
+html.light body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* Backgrounds */
+html.light .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/90 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+html.light .bg-slate-950\/40 {
+  background-color: rgba(241, 245, 249, 0.6) !important;
+}
+
+html.light .bg-slate-900,
+html.light .bg-slate-900\/90,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/40 {
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .bg-slate-800,
+html.light .bg-slate-800\/80 {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+html.light .hover\:bg-slate-800:hover,
+html.light .hover\:bg-slate-900:hover,
+html.light .hover\:bg-slate-700:hover {
+  background-color: #e2e8f0 !important;
+}
+
+/* Borders */
+html.light .border-slate-800,
+html.light .border-slate-800\/80,
+html.light .border-slate-800\/60,
+html.light .border-slate-700,
+html.light .border-slate-700\/80 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Typography */
+html.light .text-white {
+  color: #0f172a !important;
+}
+
+html.light .text-slate-100 {
+  color: #1e293b !important;
+}
+
+html.light .text-slate-200 {
+  color: #334155 !important;
+}
+
+html.light .text-slate-300 {
+  color: #475569 !important;
+}
+
+html.light .text-slate-400 {
+  color: #64748b !important;
+}
+
+html.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+html.light .hover\:text-white:hover {
+  color: #0f172a !important;
+}
+
+/* Form Controls */
+html.light input:not([type="checkbox"]):not([type="radio"]),
+html.light select,
+html.light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Modal Backdrops & Dialogs */
+html.light .bg-black\/75,
+html.light .bg-black\/70 {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+}
+
+/* Accent Badges & Colors adjusted for high contrast on light bg */
+html.light .text-emerald-400 {
+  color: #059669 !important;
+}
+
+html.light .text-amber-400 {
+  color: #d97706 !important;
+}
+
+html.light .text-purple-400 {
+  color: #7c3aed !important;
+}
+
+html.light .text-indigo-400 {
+  color: #4f46e5 !important;
+}
+
+html.light .text-teal-400 {
+  color: #0d9488 !important;
+}
+
+html.light .text-orange-400 {
+  color: #ea580c !important;
+}
+
+html.light .text-rose-400 {
+  color: #e11d48 !important;
+}
+
+html.light .text-sky-400 {
+  color: #0284c7 !important;
+}
+
+/* Toast notifications in light mode */
+html.light .bg-slate-950\/95,
+html.light .bg-slate-900\/95 {
+  background-color: #ffffff !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}

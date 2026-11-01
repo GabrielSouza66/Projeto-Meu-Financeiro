@@ -17,7 +17,7 @@ export function App() {
   return (
     <FinanceProvider>
       <BrowserRouter>
-        <div className="flex min-h-screen bg-slate-950 text-slate-100 antialiased font-sans">
+        <div className="flex min-h-screen bg-slate-950 text-slate-100 antialiased font-sans transition-colors duration-150">
           {/* Desktop Sidebar */}
           <Sidebar />
 

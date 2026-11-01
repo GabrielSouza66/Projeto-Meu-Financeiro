@@ -1,4 +1,4 @@
-import type { Transaction, SalaryInfo, MonthlySummary, PredefinedAccount, CreditCardInfo } from '../types/finance';
+import type { Transaction, SalaryInfo, MonthlySummary, PredefinedAccount, CreditCardInfo, FixedBillTemplate } from '../types/finance';
 
 export const isUUID = (str: string): boolean => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
@@ -81,13 +81,14 @@ export const getAvailableMonths = (): { label: string; value: string }[] => {
 export const PREDEFINED_FIXED_ACCOUNTS: PredefinedAccount[] = [
   'Internet',
   'Celular',
-  'Seguro Carro',
-  'Seguro Moto',
+  'Seguro',
+  'Luz',
+  'Água',
+  'Aluguel',
 ];
 
 export const PREDEFINED_CARD_ACCOUNTS: PredefinedAccount[] = [
-  'Cartão Inter',
-  'Cartão Nubank',
+  'Cartão de Crédito',
 ];
 
 export const PREDEFINED_OTHER_ACCOUNTS: PredefinedAccount[] = [
@@ -98,24 +99,42 @@ export const PREDEFINED_OTHER_ACCOUNTS: PredefinedAccount[] = [
   'Outro',
 ];
 
-export const DEFAULT_CREDIT_CARDS: CreditCardInfo[] = [
+export const DEFAULT_FIXED_BILLS_TEMPLATES: FixedBillTemplate[] = [
   {
-    id: 'card-inter',
-    name: 'Cartão Inter',
-    brand: 'Inter',
-    color: '#ff7a00',
-    closing_day: 20,
-    due_day: 28,
-    limit_amount: 5000,
+    id: 'tpl-internet',
+    title: 'Internet Residencial',
+    account_type: 'Internet',
+    default_amount: 120,
+    due_day: 10,
+    category: 'fixed',
   },
   {
-    id: 'card-nubank',
-    name: 'Cartão Nubank',
-    brand: 'Nubank',
+    id: 'tpl-celular',
+    title: 'Plano Celular',
+    account_type: 'Celular',
+    default_amount: 60,
+    due_day: 15,
+    category: 'fixed',
+  },
+  {
+    id: 'tpl-seguro',
+    title: 'Seguro',
+    account_type: 'Seguro',
+    default_amount: 250,
+    due_day: 20,
+    category: 'fixed',
+  },
+];
+
+export const DEFAULT_CREDIT_CARDS: CreditCardInfo[] = [
+  {
+    id: 'card-1',
+    name: 'Cartão de Crédito',
+    brand: 'Outro',
     color: '#8a05be',
     closing_day: 15,
     due_day: 22,
-    limit_amount: 6000,
+    limit_amount: 5000,
   },
 ];
 
@@ -132,7 +151,7 @@ export const getDefaultTransactions = (monthRef: string): Transaction[] => {
   const [year, month] = monthRef.split('-');
   return [
     {
-      id: `fix-1-${monthRef}`,
+      id: generateUUID(),
       title: 'Internet Residencial',
       category: 'fixed',
       account_type: 'Internet',
@@ -140,11 +159,11 @@ export const getDefaultTransactions = (monthRef: string): Transaction[] => {
       due_date: `${year}-${month}-10`,
       month_ref: monthRef,
       status: 'paid',
-      notes: 'Fibra óptica 600 Mega',
+      notes: 'Fibra óptica',
       created_at: new Date().toISOString(),
     },
     {
-      id: `fix-2-${monthRef}`,
+      id: generateUUID(),
       title: 'Plano Celular',
       category: 'fixed',
       account_type: 'Celular',
@@ -152,55 +171,19 @@ export const getDefaultTransactions = (monthRef: string): Transaction[] => {
       due_date: `${year}-${month}-15`,
       month_ref: monthRef,
       status: 'paid',
-      notes: 'Plano pós-pago / controle',
+      notes: 'Pós-pago',
       created_at: new Date().toISOString(),
     },
     {
-      id: `fix-3-${monthRef}`,
-      title: 'Seguro Automóvel',
-      category: 'fixed',
-      account_type: 'Seguro Carro',
-      amount: 250.0,
-      due_date: `${year}-${month}-20`,
-      month_ref: monthRef,
-      status: 'pending',
-      notes: 'Parcela seguro Porto Seguro',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: `fix-4-${monthRef}`,
-      title: 'Seguro Motocicleta',
-      category: 'fixed',
-      account_type: 'Seguro Moto',
-      amount: 150.0,
-      due_date: `${year}-${month}-22`,
-      month_ref: monthRef,
-      status: 'pending',
-      notes: 'Proteção veicular moto',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: `card-1-${monthRef}`,
-      title: 'Fatura Inter',
+      id: generateUUID(),
+      title: 'Fatura Cartão de Crédito',
       category: 'card',
-      account_type: 'Cartão Inter',
-      amount: 1250.0,
-      due_date: `${year}-${month}-28`,
+      account_type: 'Cartão de Crédito',
+      amount: 1850.0,
+      due_date: `${year}-${month}-22`,
       month_ref: monthRef,
       status: 'pending',
       notes: 'Fatura fechada compras do mês',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: `card-2-${monthRef}`,
-      title: 'Fatura Nubank',
-      category: 'card',
-      account_type: 'Cartão Nubank',
-      amount: 1780.0,
-      due_date: `${year}-${month}-22`,
-      month_ref: monthRef,
-      status: 'pending',
-      notes: 'Fatura fechada roxinho',
       created_at: new Date().toISOString(),
     },
   ];

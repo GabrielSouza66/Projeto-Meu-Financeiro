@@ -1,8 +1,9 @@
-import type { Transaction, SalaryInfo, CreditCardInfo } from '../types/finance';
+import type { Transaction, SalaryInfo, CreditCardInfo, FixedBillTemplate } from '../types/finance';
 import { 
   getDefaultTransactions, 
   getDefaultSalary, 
   DEFAULT_CREDIT_CARDS, 
+  DEFAULT_FIXED_BILLS_TEMPLATES,
   getCurrentMonthRef,
   generateUUID,
   isUUID 
@@ -13,6 +14,7 @@ const KEYS = {
   TRANSACTIONS: 'meu_financeiro_transactions_v1',
   SALARIES: 'meu_financeiro_salaries_v1',
   CARDS: 'meu_financeiro_cards_v1',
+  FIXED_TEMPLATES: 'meu_financeiro_fixed_templates_v1',
   THEME: 'meu_financeiro_theme',
 };
 
@@ -85,6 +87,28 @@ export const saveStoredCards = (cards: CreditCardInfo[]) => {
     localStorage.setItem(KEYS.CARDS, JSON.stringify(cards));
   } catch (e) {
     console.error('Falha ao salvar cartões locais:', e);
+  }
+};
+
+export const loadStoredFixedTemplates = (): FixedBillTemplate[] => {
+  try {
+    const raw = localStorage.getItem(KEYS.FIXED_TEMPLATES);
+    if (!raw) {
+      localStorage.setItem(KEYS.FIXED_TEMPLATES, JSON.stringify(DEFAULT_FIXED_BILLS_TEMPLATES));
+      return DEFAULT_FIXED_BILLS_TEMPLATES;
+    }
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('Falha ao carregar modelo de contas fixas:', e);
+    return DEFAULT_FIXED_BILLS_TEMPLATES;
+  }
+};
+
+export const saveStoredFixedTemplates = (templates: FixedBillTemplate[]) => {
+  try {
+    localStorage.setItem(KEYS.FIXED_TEMPLATES, JSON.stringify(templates));
+  } catch (e) {
+    console.error('Falha ao salvar modelo de contas fixas:', e);
   }
 };
 

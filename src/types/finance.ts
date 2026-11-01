@@ -3,10 +3,8 @@ export type AccountCategory = 'fixed' | 'card' | 'variable' | 'salary' | 'extra'
 export type PredefinedAccount = 
   | 'Internet' 
   | 'Celular' 
-  | 'Seguro Carro' 
-  | 'Seguro Moto' 
-  | 'Cartão Inter' 
-  | 'Cartão Nubank' 
+  | 'Seguro' 
+  | 'Cartão de Crédito' 
   | 'Luz'
   | 'Água'
   | 'Aluguel'
@@ -16,6 +14,15 @@ export type PredefinedAccount =
   | string;
 
 export type PaymentStatus = 'pending' | 'paid' | 'overdue';
+
+export interface FixedBillTemplate {
+  id: string;
+  title: string;
+  account_type: string;
+  default_amount: number;
+  due_day: number; // 1-31
+  category: 'fixed';
+}
 
 export interface Transaction {
   id: string;
@@ -44,9 +51,10 @@ export interface SalaryInfo {
 
 export interface CreditCardInfo {
   id: string;
-  name: 'Cartão Inter' | 'Cartão Nubank' | string;
-  brand: 'Inter' | 'Nubank' | 'Outro';
-  color: string;
+  user_id?: string;
+  name: string;
+  brand?: string;
+  color?: string;
   closing_day: number;
   due_day: number;
   limit_amount?: number;

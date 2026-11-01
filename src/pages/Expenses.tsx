@@ -17,11 +17,13 @@ import {
   Droplets,
   Home,
   ShoppingBag,
-  MoreHorizontal
+  MoreHorizontal,
+  SlidersHorizontal
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDateBR, formatMonthRef } from '../utils/finance';
 import type { Transaction } from '../types/finance';
+import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 
 export const Expenses: React.FC = () => {
@@ -35,6 +37,8 @@ export const Expenses: React.FC = () => {
     generateFixedBillsForMonth,
     summary,
   } = useFinance();
+
+  const navigate = useNavigate();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'fixed' | 'card' | 'other' | 'pending' | 'paid'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,23 +65,32 @@ export const Expenses: React.FC = () => {
   });
 
   const getAccountIcon = (accType: string) => {
-    switch (accType) {
-      case 'Internet': return <Wifi className="w-4 h-4 text-emerald-400" />;
-      case 'Celular': return <Smartphone className="w-4 h-4 text-teal-400" />;
-      case 'Seguro Carro':
-      case 'Seguro Moto': return <Shield className="w-4 h-4 text-sky-400" />;
-      case 'Cartão Inter': return <CreditCard className="w-4 h-4 text-orange-400" />;
-      case 'Cartão Nubank': return <CreditCard className="w-4 h-4 text-purple-400" />;
-      case 'Luz':
-      case 'Energia': return <Zap className="w-4 h-4 text-amber-400" />;
-      case 'Água': return <Droplets className="w-4 h-4 text-cyan-400" />;
-      case 'Aluguel':
-      case 'Condomínio': return <Home className="w-4 h-4 text-blue-400" />;
-      case 'Mercado': return <ShoppingBag className="w-4 h-4 text-rose-400" />;
-      case 'Outro':
-      case 'Outros':
-      default: return <MoreHorizontal className="w-4 h-4 text-indigo-400" />;
+    const lower = (accType || '').toLowerCase();
+    if (lower.includes('internet') || lower.includes('fibra') || lower.includes('wifi')) {
+      return <Wifi className="w-4 h-4 text-emerald-400" />;
     }
+    if (lower.includes('celular') || lower.includes('tel') || lower.includes('plano')) {
+      return <Smartphone className="w-4 h-4 text-teal-400" />;
+    }
+    if (lower.includes('seguro')) {
+      return <Shield className="w-4 h-4 text-sky-400" />;
+    }
+    if (lower.includes('luz') || lower.includes('energia')) {
+      return <Zap className="w-4 h-4 text-amber-400" />;
+    }
+    if (lower.includes('água') || lower.includes('agua') || lower.includes('saneamento')) {
+      return <Droplets className="w-4 h-4 text-cyan-400" />;
+    }
+    if (lower.includes('aluguel') || lower.includes('condomínio') || lower.includes('condominio')) {
+      return <Home className="w-4 h-4 text-blue-400" />;
+    }
+    if (lower.includes('mercado') || lower.includes('feira') || lower.includes('compras')) {
+      return <ShoppingBag className="w-4 h-4 text-rose-400" />;
+    }
+    if (lower.includes('cartão') || lower.includes('cartao') || lower.includes('fatura') || lower.includes('card')) {
+      return <CreditCard className="w-4 h-4 text-purple-400" />;
+    }
+    return <MoreHorizontal className="w-4 h-4 text-indigo-400" />;
   };
 
   const handleDelete = (tx: Transaction) => {
@@ -103,15 +116,24 @@ export const Expenses: React.FC = () => {
             Gestão de Lançamentos
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Controle das 4 contas fixas (Internet, Celular, Seguros) e cartões (Inter e Nubank)
+            Controle das suas contas fixas, faturas de cartão de crédito e despesas variáveis
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => navigate('/settings')}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition"
+            title="Personalize seu modelo de contas fixas e cartões de crédito"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden sm:inline">Modelos & Cartões</span>
+          </button>
+
           <button
             onClick={() => generateFixedBillsForMonth(currentMonth)}
             className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold transition"
-            title="Gera automaticamente as contas fixas ausentes para este mês"
+            title="Gera automaticamente as contas fixas ausentes para este mês a partir do seu modelo"
           >
             <RefreshCw className="w-4 h-4 text-emerald-400" />
             <span>Gerar Fixas</span>
@@ -137,11 +159,11 @@ export const Expenses: React.FC = () => {
           <span className="text-lg font-black text-white">{formatCurrency(summary.totalExpenses)}</span>
         </div>
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
-          <span className="text-xs text-emerald-400 block mb-1 font-semibold">Contas Fixas (4)</span>
+          <span className="text-xs text-emerald-400 block mb-1 font-semibold">Contas Fixas</span>
           <span className="text-lg font-black text-emerald-400">{formatCurrency(summary.fixedExpenses)}</span>
         </div>
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
-          <span className="text-xs text-purple-400 block mb-1 font-semibold">Cartões (Inter + Nu)</span>
+          <span className="text-xs text-purple-400 block mb-1 font-semibold">Cartão de Crédito</span>
           <span className="text-lg font-black text-purple-400">{formatCurrency(summary.cardExpenses)}</span>
         </div>
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
@@ -224,15 +246,13 @@ export const Expenses: React.FC = () => {
                 <div
                   className={`p-3 rounded-2xl shrink-0 ${
                     tx.category === 'card'
-                      ? tx.account_type === 'Cartão Inter'
-                        ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                        : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                      ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                       : tx.account_type === 'Outro' || tx.category === 'variable'
                       ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
                       : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                   }`}
                 >
-                  {getAccountIcon(tx.account_type)}
+                  {getAccountIcon(tx.account_type || tx.title)}
                 </div>
 
                 <div className="min-w-0">

@@ -10,13 +10,12 @@ import {
   Droplets, 
   Home, 
   ShoppingBag, 
-  MoreHorizontal 
+  MoreHorizontal,
+  Bookmark
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
-import type { PredefinedAccount, AccountCategory, PaymentStatus } from '../types/finance';
+import type { AccountCategory, PaymentStatus, FixedBillTemplate, CreditCardInfo } from '../types/finance';
 import { 
-  PREDEFINED_FIXED_ACCOUNTS, 
-  PREDEFINED_CARD_ACCOUNTS, 
   PREDEFINED_OTHER_ACCOUNTS, 
   getAvailableMonths 
 } from '../utils/finance';
@@ -31,6 +30,8 @@ export const ExpenseModal: React.FC = () => {
     addTransaction,
     updateTransaction,
     currentMonth,
+    fixedTemplates,
+    cards,
   } = useFinance();
 
   const [title, setTitle] = useState('');
@@ -38,7 +39,7 @@ export const ExpenseModal: React.FC = () => {
   const [dueDate, setDueDate] = useState('');
   const [monthRef, setMonthRef] = useState(currentMonth);
   const [category, setCategory] = useState<AccountCategory>('fixed');
-  const [accountType, setAccountType] = useState<PredefinedAccount | string>('Internet');
+  const [accountType, setAccountType] = useState<string>('Internet');
   const [status, setStatus] = useState<PaymentStatus>('pending');
   const [notes, setNotes] = useState('');
 
@@ -55,39 +56,58 @@ export const ExpenseModal: React.FC = () => {
       setNotes(editingTransaction.notes || '');
     } else {
       // Defaults for a new item
-      setTitle('Internet Residencial');
-      setAmountStr('');
       const [yr, mo] = currentMonth.split('-');
-      setDueDate(`${yr}-${mo}-10`);
-      setMonthRef(currentMonth);
-      setCategory('fixed');
-      setAccountType('Internet');
+      if (fixedTemplates && fixedTemplates.length > 0) {
+        const first = fixedTemplates[0];
+        setTitle(first.title);
+        setAmountStr(first.default_amount > 0 ? String(first.default_amount) : '');
+        setDueDate(`${yr}-${mo}-${String(first.due_day).padStart(2, '0')}`);
+        setMonthRef(currentMonth);
+        setCategory('fixed');
+        setAccountType(first.account_type || first.title);
+      } else {
+        setTitle('Internet Residencial');
+        setAmountStr('');
+        setDueDate(`${yr}-${mo}-10`);
+        setMonthRef(currentMonth);
+        setCategory('fixed');
+        setAccountType('Internet');
+      }
       setStatus('pending');
       setNotes('');
     }
-  }, [editingTransaction, isExpenseModalOpen, currentMonth]);
+  }, [editingTransaction, isExpenseModalOpen, currentMonth, fixedTemplates]);
 
   if (!isExpenseModalOpen) return null;
 
-  const handleSelectQuickAccount = (acc: PredefinedAccount) => {
-    setAccountType(acc);
-    if (PREDEFINED_FIXED_ACCOUNTS.includes(acc)) {
-      setCategory('fixed');
-    } else if (PREDEFINED_CARD_ACCOUNTS.includes(acc)) {
-      setCategory('card');
-    } else {
-      setCategory('variable');
-    }
+  const [yr, mo] = (monthRef || currentMonth).split('-');
 
-    // Default friendly titles
+  const handleSelectFixedTemplate = (tpl: FixedBillTemplate) => {
+    setCategory('fixed');
+    setAccountType(tpl.account_type || tpl.title);
     if (!editingTransaction) {
-      if (acc === 'Internet') setTitle('Internet Residencial');
-      else if (acc === 'Celular') setTitle('Plano Celular');
-      else if (acc === 'Seguro Carro') setTitle('Seguro do Carro');
-      else if (acc === 'Seguro Moto') setTitle('Seguro da Moto');
-      else if (acc === 'Cartão Inter') setTitle('Fatura Cartão Inter');
-      else if (acc === 'Cartão Nubank') setTitle('Fatura Nubank');
-      else if (acc === 'Luz') setTitle('Conta de Luz / Energia');
+      setTitle(tpl.title);
+      if (tpl.default_amount > 0) {
+        setAmountStr(String(tpl.default_amount));
+      }
+      setDueDate(`${yr}-${mo}-${String(tpl.due_day).padStart(2, '0')}`);
+    }
+  };
+
+  const handleSelectCard = (card: CreditCardInfo) => {
+    setCategory('card');
+    setAccountType(card.name);
+    if (!editingTransaction) {
+      setTitle(`Fatura ${card.name}`);
+      setDueDate(`${yr}-${mo}-${String(card.due_day).padStart(2, '0')}`);
+    }
+  };
+
+  const handleSelectOtherAccount = (acc: string) => {
+    setAccountType(acc);
+    setCategory('variable');
+    if (!editingTransaction) {
+      if (acc === 'Luz') setTitle('Conta de Luz / Energia');
       else if (acc === 'Água') setTitle('Conta de Água / Saneamento');
       else if (acc === 'Aluguel') setTitle('Aluguel / Condomínio');
       else if (acc === 'Mercado') setTitle('Compras de Supermercado');
@@ -132,20 +152,32 @@ export const ExpenseModal: React.FC = () => {
   };
 
   const getAccountIcon = (acc: string) => {
-    switch (acc) {
-      case 'Internet': return <Wifi className="w-4 h-4" />;
-      case 'Celular': return <Smartphone className="w-4 h-4" />;
-      case 'Seguro Carro':
-      case 'Seguro Moto': return <Shield className="w-4 h-4" />;
-      case 'Cartão Inter':
-      case 'Cartão Nubank': return <CreditCard className="w-4 h-4" />;
-      case 'Luz': return <Zap className="w-4 h-4 text-amber-400" />;
-      case 'Água': return <Droplets className="w-4 h-4 text-cyan-400" />;
-      case 'Aluguel': return <Home className="w-4 h-4 text-blue-400" />;
-      case 'Mercado': return <ShoppingBag className="w-4 h-4 text-rose-400" />;
-      case 'Outro':
-      default: return <MoreHorizontal className="w-4 h-4 text-indigo-400" />;
+    const lower = (acc || '').toLowerCase();
+    if (lower.includes('internet') || lower.includes('fibra') || lower.includes('wifi')) {
+      return <Wifi className="w-4 h-4 text-emerald-400" />;
     }
+    if (lower.includes('celular') || lower.includes('tel') || lower.includes('plano')) {
+      return <Smartphone className="w-4 h-4 text-teal-400" />;
+    }
+    if (lower.includes('seguro')) {
+      return <Shield className="w-4 h-4 text-sky-400" />;
+    }
+    if (lower.includes('luz') || lower.includes('energia')) {
+      return <Zap className="w-4 h-4 text-amber-400" />;
+    }
+    if (lower.includes('água') || lower.includes('agua') || lower.includes('saneamento')) {
+      return <Droplets className="w-4 h-4 text-cyan-400" />;
+    }
+    if (lower.includes('aluguel') || lower.includes('condomínio') || lower.includes('condominio')) {
+      return <Home className="w-4 h-4 text-blue-400" />;
+    }
+    if (lower.includes('mercado') || lower.includes('feira') || lower.includes('compras')) {
+      return <ShoppingBag className="w-4 h-4 text-rose-400" />;
+    }
+    if (lower.includes('cartão') || lower.includes('cartao') || lower.includes('fatura')) {
+      return <CreditCard className="w-4 h-4 text-purple-400" />;
+    }
+    return <MoreHorizontal className="w-4 h-4 text-indigo-400" />;
   };
 
   return (
@@ -158,7 +190,7 @@ export const ExpenseModal: React.FC = () => {
               {editingTransaction ? 'Editar Lançamento' : 'Novo Lançamento'}
             </h3>
             <p className="text-xs text-slate-400">
-              Cadastre contas fixas, faturas de cartão ou despesas avulsas
+              Cadastre contas fixas, faturas de cartão de crédito ou despesas avulsas
             </p>
           </div>
           <button
@@ -179,78 +211,114 @@ export const ExpenseModal: React.FC = () => {
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
               Selecione a Conta / Categoria Rápida
             </label>
-            <div className="space-y-2">
+            <div className="space-y-3">
+              {/* Contas Fixas Personalizadas */}
+              {fixedTemplates.length > 0 && (
+                <div>
+                  <span className="text-[11px] text-slate-400 block mb-1 font-semibold flex items-center gap-1.5">
+                    <Bookmark className="w-3.5 h-3.5 text-emerald-400" />
+                    Suas Contas Fixas:
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {fixedTemplates.map((tpl) => {
+                      const isSelected = category === 'fixed' && (accountType === tpl.account_type || accountType === tpl.title);
+                      return (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => handleSelectFixedTemplate(tpl)}
+                          className={clsx(
+                            'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition border text-left',
+                            isSelected
+                              ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-900/40'
+                              : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-700/80'
+                          )}
+                        >
+                          {getAccountIcon(tpl.account_type || tpl.title)}
+                          <span className="truncate">{tpl.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Cartões de Crédito */}
               <div>
-                <span className="text-[11px] text-slate-400 block mb-1">Contas Fixas:</span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {PREDEFINED_FIXED_ACCOUNTS.map((acc) => (
+                <span className="text-[11px] text-slate-400 block mb-1 font-semibold flex items-center gap-1.5">
+                  <CreditCard className="w-3.5 h-3.5 text-purple-400" />
+                  Cartões de Crédito:
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {cards.map((c) => {
+                    const isSelected = category === 'card' && accountType === c.name;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleSelectCard(c)}
+                        className={clsx(
+                          'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition border text-left',
+                          isSelected
+                            ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/40'
+                            : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-700/80'
+                        )}
+                      >
+                        <CreditCard className="w-4 h-4 shrink-0" style={{ color: isSelected ? '#ffffff' : (c.color || '#a855f7') }} />
+                        <span className="truncate">{c.name}</span>
+                      </button>
+                    );
+                  })}
+                  {cards.length === 0 && (
                     <button
-                      key={acc}
                       type="button"
-                      onClick={() => handleSelectQuickAccount(acc)}
+                      onClick={() => handleSelectCard({ id: 'default', name: 'Cartão de Crédito', closing_day: 15, due_day: 22 })}
                       className={clsx(
-                        'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition border text-left',
-                        accountType === acc
-                          ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-900/40'
-                          : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-700/80'
+                        'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition border text-left',
+                        category === 'card'
+                          ? 'bg-purple-600 text-white border-purple-500'
+                          : 'bg-slate-800/80 text-slate-300 border-slate-700/80'
                       )}
                     >
-                      {getAccountIcon(acc)}
-                      <span className="truncate">{acc}</span>
+                      <CreditCard className="w-4 h-4 text-purple-400" />
+                      <span>Cartão de Crédito</span>
                     </button>
-                  ))}
+                  )}
                 </div>
               </div>
 
+              {/* Outras Contas */}
               <div>
-                <span className="text-[11px] text-slate-400 block mb-1">Cartões de Crédito:</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {PREDEFINED_CARD_ACCOUNTS.map((acc) => (
-                    <button
-                      key={acc}
-                      type="button"
-                      onClick={() => handleSelectQuickAccount(acc)}
-                      className={clsx(
-                        'flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition border',
-                        accountType === acc
-                          ? acc === 'Cartão Inter'
-                            ? 'bg-orange-600 text-white border-orange-500 shadow-md shadow-orange-900/40'
-                            : 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/40'
-                          : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-700/80'
-                      )}
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      <span>{acc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <span className="text-[11px] text-slate-400 block mb-1">Outras Contas & Despesas:</span>
+                <span className="text-[11px] text-slate-400 block mb-1 font-semibold flex items-center gap-1.5">
+                  <MoreHorizontal className="w-3.5 h-3.5 text-indigo-400" />
+                  Outras Contas & Despesas:
+                </span>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                  {PREDEFINED_OTHER_ACCOUNTS.map((acc) => (
-                    <button
-                      key={acc}
-                      type="button"
-                      onClick={() => handleSelectQuickAccount(acc)}
-                      className={clsx(
-                        'flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition border text-left',
-                        accountType === acc
-                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-900/40'
-                          : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-700/80'
-                      )}
-                    >
-                      {getAccountIcon(acc)}
-                      <span className="truncate">{acc}</span>
-                    </button>
-                  ))}
+                  {PREDEFINED_OTHER_ACCOUNTS.map((acc) => {
+                    const isSelected = category === 'variable' && accountType === acc;
+                    return (
+                      <button
+                        key={acc}
+                        type="button"
+                        onClick={() => handleSelectOtherAccount(acc)}
+                        className={clsx(
+                          'flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition border text-left',
+                          isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-900/40'
+                            : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-700/80'
+                        )}
+                      >
+                        {getAccountIcon(acc)}
+                        <span className="truncate">{acc}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
             {/* Category / Tipo de Despesa */}
-            <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80">
+            <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80 mt-3">
               <span className="text-[11px] font-bold text-slate-400 uppercase">Classificação da Conta:</span>
               <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800">
                 <button
@@ -303,7 +371,7 @@ export const ExpenseModal: React.FC = () => {
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: Fatura Nubank, Internet Claro..."
+              placeholder="Ex: Fatura do Cartão, Internet Residencial..."
               className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
             />
           </div>
