@@ -15,13 +15,11 @@ import {
   Trash2,
   Edit2,
   Bookmark,
-  Calendar,
-  DollarSign
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { getStoredSupabaseConfig, saveSupabaseConfig } from '../services/supabase';
 import { AuthModal } from '../components/AuthModal';
-import { formatCurrency, DEFAULT_FIXED_BILLS_TEMPLATES, DEFAULT_CREDIT_CARDS } from '../utils/finance';
+import { formatCurrency, DEFAULT_FIXED_BILLS_TEMPLATES } from '../utils/finance';
 import type { CreditCardInfo, FixedBillTemplate } from '../types/finance';
 import clsx from 'clsx';
 

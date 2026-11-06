@@ -13,7 +13,6 @@ import {
   calculateSummary, 
   getDefaultSalary, 
   getDefaultTransactions,
-  PREDEFINED_FIXED_ACCOUNTS,
   DEFAULT_CREDIT_CARDS,
   DEFAULT_FIXED_BILLS_TEMPLATES,
   generateUUID
@@ -526,10 +525,12 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     setSyncStatus('syncing');
     setSyncMessage('Sincronizando dados com o Supabase...');
 
-    const result = await syncWithCloud(user.id, transactions, salaries);
+    const result = await syncWithCloud(user.id, transactions, salaries, cards, fixedTemplates);
     if (result.success) {
       if (result.transactions) setTransactions(result.transactions);
       if (result.salaries) setSalaries(result.salaries);
+      if (result.cards && result.cards.length > 0) setCards(result.cards);
+      if (result.fixedTemplates && result.fixedTemplates.length > 0) setFixedTemplates(result.fixedTemplates);
       setSyncStatus('synced');
       setSyncMessage(result.message);
       setTimeout(() => setSyncStatus('idle'), 5000);

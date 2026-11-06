@@ -116,11 +116,15 @@ export const saveStoredFixedTemplates = (templates: FixedBillTemplate[]) => {
 export const syncWithCloud = async (
   userId: string,
   localTransactions: Transaction[],
-  localSalaries: Record<string, SalaryInfo>
+  localSalaries: Record<string, SalaryInfo>,
+  localCards?: CreditCardInfo[],
+  localTemplates?: FixedBillTemplate[]
 ): Promise<{
   success: boolean;
   transactions?: Transaction[];
   salaries?: Record<string, SalaryInfo>;
+  cards?: CreditCardInfo[];
+  fixedTemplates?: FixedBillTemplate[];
   message: string;
   count?: number;
 }> => {
@@ -300,10 +304,85 @@ export const syncWithCloud = async (
     saveStoredTransactions(unifiedTransactions);
     saveStoredSalaries(mergedSalaries);
 
+    // 5. Sync credit cards (safe try-catch)
+    let unifiedCards: CreditCardInfo[] = localCards || [];
+    try {
+      if (localCards && localCards.length > 0) {
+        const cardsToUpsert = localCards.map((c) => ({
+          id: isUUID(c.id) ? c.id : generateUUID(),
+          user_id: userId,
+          name: c.name,
+          brand: c.brand || 'Outro',
+          closing_day: Number(c.closing_day) || 15,
+          due_day: Number(c.due_day) || 22,
+          limit_amount: c.limit_amount ? Number(c.limit_amount) : 0,
+          color: c.color || '#8a05be',
+        }));
+        await supabase.from('credit_cards').upsert(cardsToUpsert);
+      }
+      const { data: remoteCards } = await supabase
+        .from('credit_cards')
+        .select('*')
+        .eq('user_id', userId);
+      if (remoteCards && remoteCards.length > 0) {
+        unifiedCards = remoteCards.map((c: any) => ({
+          id: c.id,
+          user_id: c.user_id,
+          name: c.name,
+          brand: c.brand,
+          closing_day: c.closing_day,
+          due_day: c.due_day,
+          limit_amount: c.limit_amount,
+          color: c.color,
+        }));
+        saveStoredCards(unifiedCards);
+      }
+    } catch (cardErr) {
+      console.warn('Sync de cartões ignorado ou tabela não configurada:', cardErr);
+    }
+
+    // 6. Sync fixed templates (safe try-catch)
+    let unifiedTemplates: FixedBillTemplate[] = localTemplates || [];
+    try {
+      if (localTemplates && localTemplates.length > 0) {
+        const templatesToUpsert = localTemplates.map((t) => ({
+          id: isUUID(t.id) ? t.id : generateUUID(),
+          user_id: userId,
+          title: t.title,
+          account_type: t.account_type || t.title,
+          default_amount: Number(t.default_amount) || 0,
+          due_day: Number(t.due_day) || 10,
+          category: 'fixed',
+          updated_at: new Date().toISOString(),
+        }));
+        await supabase.from('fixed_templates').upsert(templatesToUpsert);
+      }
+      const { data: remoteTemplates } = await supabase
+        .from('fixed_templates')
+        .select('*')
+        .eq('user_id', userId);
+      if (remoteTemplates && remoteTemplates.length > 0) {
+        unifiedTemplates = remoteTemplates.map((t: any) => ({
+          id: t.id,
+          user_id: t.user_id,
+          title: t.title,
+          account_type: t.account_type,
+          default_amount: Number(t.default_amount) || 0,
+          due_day: t.due_day,
+          category: 'fixed',
+        }));
+        saveStoredFixedTemplates(unifiedTemplates);
+      }
+    } catch (tplErr) {
+      console.warn('Sync de modelos fixos ignorado ou tabela não configurada:', tplErr);
+    }
+
     return {
       success: true,
       transactions: unifiedTransactions,
       salaries: mergedSalaries,
+      cards: unifiedCards,
+      fixedTemplates: unifiedTemplates,
       message: `Sincronização concluída com sucesso! (${unifiedTransactions.length} contas sincronizadas)`,
       count: unifiedTransactions.length,
     };

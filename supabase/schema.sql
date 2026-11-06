@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
   title TEXT NOT NULL,
   category TEXT NOT NULL CHECK (category IN ('fixed', 'card', 'variable', 'salary', 'extra')),
-  account_type TEXT NOT NULL, -- 'Internet', 'Celular', 'Seguro Carro', 'Seguro Moto', 'Cartão Inter', 'Cartão Nubank', etc.
+  account_type TEXT NOT NULL,
   amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   due_date DATE NOT NULL,
   month_ref TEXT NOT NULL, -- formato YYYY-MM
@@ -69,9 +69,24 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- 6. Tabela de Modelos de Contas Fixas Personalizadas por Usuário
+CREATE TABLE IF NOT EXISTS public.fixed_templates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  account_type TEXT NOT NULL,
+  default_amount NUMERIC(12,2) DEFAULT 0,
+  due_day INTEGER NOT NULL CHECK (due_day BETWEEN 1 AND 31),
+  category TEXT DEFAULT 'fixed' CHECK (category = 'fixed'),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
 -- Índices para buscas ultrarrápidas
 CREATE INDEX IF NOT EXISTS idx_transactions_user_month ON public.transactions(user_id, month_ref);
 CREATE INDEX IF NOT EXISTS idx_salary_user_month ON public.salary_records(user_id, month_ref);
+CREATE INDEX IF NOT EXISTS idx_credit_cards_user ON public.credit_cards(user_id);
+CREATE INDEX IF NOT EXISTS idx_fixed_templates_user ON public.fixed_templates(user_id);
 
 -- ==============================================================================
 -- POLÍTICAS DE SEGURANÇA ROW LEVEL SECURITY (RLS)
@@ -83,6 +98,7 @@ ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.credit_cards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.salary_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fixed_templates ENABLE ROW LEVEL SECURITY;
 
 -- Políticas para profiles
 CREATE POLICY "Usuário pode ver próprio perfil" ON public.profiles
@@ -104,6 +120,10 @@ CREATE POLICY "Usuário pode gerenciar suas transações" ON public.transactions
 
 -- Políticas para credit_cards
 CREATE POLICY "Usuário pode gerenciar seus cartões" ON public.credit_cards
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Políticas para fixed_templates
+CREATE POLICY "Usuário pode gerenciar seus modelos de fixas" ON public.fixed_templates
   FOR ALL USING (auth.uid() = user_id);
 
 -- Políticas para categories
