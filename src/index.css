@@ -32,7 +32,7 @@
   }
 }
 
-/* Custom scrollbars for clean look */
+/* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -66,48 +66,52 @@
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
-/* Card Glow Effect */
-.card-glow-green {
+/* Card Glow Effect (Dark Mode) */
+.dark .card-glow-green {
   box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.15);
 }
 
-.card-glow-red {
+.dark .card-glow-red {
   box-shadow: 0 0 30px -4px rgba(239, 68, 68, 0.25);
 }
 
-.card-glow-yellow {
+.dark .card-glow-yellow {
   box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.2);
 }
 
 /* ==========================================================================
    LIGHT MODE OVERRIDES
-   Permite alternância instantânea e impecável entre Dark Premium e Light Clean
+   Alternância limpa, moderna e consistente entre Dark Premium e Light Clean
    ========================================================================== */
 html.light {
   color-scheme: light;
 }
 
 html.light body {
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
 }
 
-/* Backgrounds */
+/* App Background & Layout */
 html.light .bg-slate-950 {
   background-color: #f8fafc !important;
 }
 
 html.light .bg-slate-950\/80,
-html.light .bg-slate-950\/90 {
-  background-color: rgba(255, 255, 255, 0.92) !important;
+html.light .bg-slate-950\/90,
+html.light .bg-slate-950\/95 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(12px) !important;
 }
 
-html.light .bg-slate-950\/40 {
-  background-color: rgba(241, 245, 249, 0.6) !important;
+html.light .bg-slate-950\/40,
+html.light .bg-slate-950\/60 {
+  background-color: #f1f5f9 !important;
 }
 
+/* Panels and Cards */
 html.light .bg-slate-900,
+html.light .bg-slate-900\/95,
 html.light .bg-slate-900\/90,
 html.light .bg-slate-900\/80,
 html.light .bg-slate-900\/60,
@@ -117,7 +121,8 @@ html.light .bg-slate-900\/40 {
 }
 
 html.light .bg-slate-800,
-html.light .bg-slate-800\/80 {
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800\/60 {
   background-color: #f1f5f9 !important;
   color: #334155 !important;
 }
@@ -126,6 +131,53 @@ html.light .hover\:bg-slate-800:hover,
 html.light .hover\:bg-slate-900:hover,
 html.light .hover\:bg-slate-700:hover {
   background-color: #e2e8f0 !important;
+}
+
+/* Remove dark linear gradients from cards in light mode */
+html.light [class*="bg-gradient-to-br"] {
+  background-image: none !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Light Alert Banners */
+html.light [class*="from-rose-950"] {
+  background-image: none !important;
+  background-color: #fef2f2 !important;
+  border-color: #f87171 !important;
+  box-shadow: 0 4px 12px -2px rgba(239, 68, 68, 0.1) !important;
+}
+html.light [class*="from-rose-950"] h4 {
+  color: #991b1b !important;
+}
+html.light [class*="from-rose-950"] p {
+  color: #b91c1c !important;
+}
+
+html.light [class*="from-amber-950"] {
+  background-image: none !important;
+  background-color: #fffbeb !important;
+  border-color: #fbbf24 !important;
+  box-shadow: 0 4px 12px -2px rgba(245, 158, 11, 0.1) !important;
+}
+html.light [class*="from-amber-950"] h4 {
+  color: #92400e !important;
+}
+html.light [class*="from-amber-950"] p {
+  color: #b45309 !important;
+}
+
+html.light [class*="from-emerald-950"] {
+  background-image: none !important;
+  background-color: #f0fdf4 !important;
+  border-color: #4ade80 !important;
+  box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.1) !important;
+}
+html.light [class*="from-emerald-950"] h4 {
+  color: #166534 !important;
+}
+html.light [class*="from-emerald-950"] p {
+  color: #15803d !important;
 }
 
 /* Borders */
@@ -137,8 +189,13 @@ html.light .border-slate-700\/80 {
   border-color: #e2e8f0 !important;
 }
 
-/* Typography */
-html.light .text-white {
+/* Typography in Light Mode */
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4,
+html.light h5,
+html.light h6 {
   color: #0f172a !important;
 }
 
@@ -162,8 +219,25 @@ html.light .text-slate-500 {
   color: #64748b !important;
 }
 
-html.light .hover\:text-white:hover {
+/* General text-white turns dark, EXCEPT inside buttons and colored badges */
+html.light .text-white:not(button):not(button *):not([class*="bg-emerald-"]):not([class*="bg-purple-"]):not([class*="bg-rose-"]):not([class*="bg-indigo-"]):not([class*="bg-amber-"]):not([class*="bg-teal-"]):not([class*="bg-orange-"]) {
   color: #0f172a !important;
+}
+
+/* Buttons and Badges must KEEP clean white text */
+html.light button.bg-emerald-600,
+html.light button.bg-emerald-600 *,
+html.light button.bg-purple-600,
+html.light button.bg-purple-600 *,
+html.light button.bg-rose-600,
+html.light button.bg-rose-600 *,
+html.light button.bg-indigo-600,
+html.light button.bg-indigo-600 *,
+html.light .bg-emerald-600,
+html.light .bg-purple-600,
+html.light .bg-rose-600,
+html.light .bg-indigo-600 {
+  color: #ffffff !important;
 }
 
 /* Form Controls */
@@ -217,11 +291,4 @@ html.light .text-rose-400 {
 
 html.light .text-sky-400 {
   color: #0284c7 !important;
-}
-
-/* Toast notifications in light mode */
-html.light .bg-slate-950\/95,
-html.light .bg-slate-900\/95 {
-  background-color: #ffffff !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
 }
