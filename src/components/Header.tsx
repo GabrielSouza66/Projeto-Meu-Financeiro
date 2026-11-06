@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { getAvailableMonths } from '../utils/finance';
-import { AuthModal } from './AuthModal';
 import clsx from 'clsx';
 
 export const Header: React.FC = () => {
@@ -32,9 +31,9 @@ export const Header: React.FC = () => {
     syncNow,
     syncStatus,
     syncMessage,
+    setIsAuthModalOpen,
   } = useFinance();
 
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const months = getAvailableMonths();
 
   const handlePrevMonth = () => {
@@ -217,8 +216,6 @@ export const Header: React.FC = () => {
           </div>
         )}
       </header>
-
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </>
   );
 };

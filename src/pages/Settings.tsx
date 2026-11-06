@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { getStoredSupabaseConfig, saveSupabaseConfig } from '../services/supabase';
-import { AuthModal } from '../components/AuthModal';
 import { formatCurrency, DEFAULT_FIXED_BILLS_TEMPLATES } from '../utils/finance';
 import type { CreditCardInfo, FixedBillTemplate } from '../types/finance';
 import clsx from 'clsx';
@@ -41,12 +40,12 @@ export const Settings: React.FC = () => {
     user,
     syncNow,
     syncStatus,
+    setIsAuthModalOpen,
   } = useFinance();
 
   const [supabaseUrl, setSupabaseUrl] = useState('');
   const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
   const [isSavedConfig, setIsSavedConfig] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
 
   // States for Card Modal/Form
@@ -886,8 +885,6 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       )}
-
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 };

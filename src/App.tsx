@@ -5,6 +5,7 @@ import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { ExpenseModal } from './components/ExpenseModal';
 import { SalaryModal } from './components/SalaryModal';
+import { AuthModal } from './components/AuthModal';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -42,6 +43,7 @@ export function App() {
           {/* Global Modals */}
           <ExpenseModal />
           <SalaryModal />
+          <AuthModal />
         </div>
       </BrowserRouter>
     </FinanceProvider>

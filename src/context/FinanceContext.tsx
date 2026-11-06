@@ -66,6 +66,10 @@ interface FinanceContextType {
   setEditingTransaction: (tx: Transaction | null) => void;
   isSalaryModalOpen: boolean;
   setIsSalaryModalOpen: (open: boolean) => void;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+  authModalMode: 'login' | 'signup' | 'forgot' | 'reset';
+  setAuthModalMode: (mode: 'login' | 'signup' | 'forgot' | 'reset') => void;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -87,6 +91,8 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot' | 'reset'>('login');
 
   // Cloud & Auth state
   const [user, setUser] = useState<any>(null);
@@ -139,9 +145,19 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      if (event === 'PASSWORD_RECOVERY') {
+        setAuthModalMode('reset');
+        setIsAuthModalOpen(true);
+      }
     });
+
+    // Also check if URL contains recovery token or hash
+    if (typeof window !== 'undefined' && window.location.hash.includes('type=recovery')) {
+      setAuthModalMode('reset');
+      setIsAuthModalOpen(true);
+    }
 
     return () => subscription.unsubscribe();
   }, []);
@@ -579,6 +595,10 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
         setEditingTransaction,
         isSalaryModalOpen,
         setIsSalaryModalOpen,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        authModalMode,
+        setAuthModalMode,
       }}
     >
       {children}
