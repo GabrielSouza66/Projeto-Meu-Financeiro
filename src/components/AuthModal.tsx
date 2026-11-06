@@ -60,7 +60,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (!supabase) {
       setMessage({
-        text: 'Chaves do Supabase não configuradas. Acesse a aba Configurações para adicioná-las.',
+        text: 'Não foi possível conectar ao serviço de autenticação. Verifique sua conexão e tente novamente.',
         type: 'error',
       });
       return;
@@ -110,7 +110,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (!supabase) {
       setMessage({
-        text: 'Supabase não conectado. Configure as chaves em Configurações.',
+        text: 'Não foi possível conectar ao serviço de autenticação. Verifique sua conexão e tente novamente.',
         type: 'error',
       });
       return;
@@ -153,7 +153,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (!supabase) {
       setMessage({
-        text: 'Supabase não conectado.',
+        text: 'Não foi possível conectar ao serviço de autenticação. Verifique sua conexão e tente novamente.',
         type: 'error',
       });
       return;

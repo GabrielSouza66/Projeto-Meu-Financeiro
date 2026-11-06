@@ -5,6 +5,10 @@ const STORAGE_KEYS = {
   SUPABASE_ANON_KEY: 'meu_financeiro_supabase_anon_key',
 };
 
+// Configurações públicas padrão para produção (permite que qualquer usuário acesse sem precisar configurar nada)
+const DEFAULT_SUPABASE_URL = 'https://eqkkjxjorlupqvzvrxdk.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_1AWdIsrdcA-bIbZ2W9ByzA_BBgGiJlQ';
+
 export const getStoredSupabaseConfig = () => {
   const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
   const envKey = (
@@ -27,8 +31,8 @@ export const getStoredSupabaseConfig = () => {
   }
 
   // URL prioritizing valid value, sanitized (no trailing slash)
-  let url = (localUrl || envUrl || '').replace(/\/+$/, '');
-  let anonKey = localKey || envKey || '';
+  let url = (localUrl || envUrl || DEFAULT_SUPABASE_URL).replace(/\/+$/, '');
+  let anonKey = localKey || envKey || DEFAULT_SUPABASE_ANON_KEY;
 
   return { url, anonKey };
 };
