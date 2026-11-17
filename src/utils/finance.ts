@@ -101,7 +101,7 @@ export const PREDEFINED_OTHER_ACCOUNTS: PredefinedAccount[] = [
 
 export const DEFAULT_FIXED_BILLS_TEMPLATES: FixedBillTemplate[] = [
   {
-    id: 'tpl-internet',
+    id: 'f1111111-1111-4111-8111-111111111111',
     title: 'Internet Residencial',
     account_type: 'Internet',
     default_amount: 120,
@@ -109,7 +109,7 @@ export const DEFAULT_FIXED_BILLS_TEMPLATES: FixedBillTemplate[] = [
     category: 'fixed',
   },
   {
-    id: 'tpl-celular',
+    id: 'f2222222-2222-4222-8222-222222222222',
     title: 'Plano Celular',
     account_type: 'Celular',
     default_amount: 60,
@@ -117,7 +117,7 @@ export const DEFAULT_FIXED_BILLS_TEMPLATES: FixedBillTemplate[] = [
     category: 'fixed',
   },
   {
-    id: 'tpl-seguro',
+    id: 'f3333333-3333-4333-8333-333333333333',
     title: 'Seguro',
     account_type: 'Seguro',
     default_amount: 250,
@@ -128,7 +128,7 @@ export const DEFAULT_FIXED_BILLS_TEMPLATES: FixedBillTemplate[] = [
 
 export const DEFAULT_CREDIT_CARDS: CreditCardInfo[] = [
   {
-    id: 'card-1',
+    id: 'c1111111-1111-4111-8111-111111111111',
     name: 'Cartão de Crédito',
     brand: 'Outro',
     color: '#8a05be',

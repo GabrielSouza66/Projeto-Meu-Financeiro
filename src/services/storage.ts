@@ -123,31 +123,30 @@ export const loadStoredCards = (): CreditCardInfo[] => {
     }
     const parsed: CreditCardInfo[] = JSON.parse(raw);
 
-    // Limpeza de cartões legados (Inter e Nubank) para manter apenas "Cartão de Crédito" ou personalizados do usuário
-    const hasLegacy = parsed.some(
-      (c) =>
+    // Deduplica rigorosamente por nome e remove cartões legados (Inter e Nubank)
+    const seen = new Set<string>();
+    const cleaned: CreditCardInfo[] = [];
+
+    for (const c of parsed) {
+      const nameKey = (c.name || '').trim().toLowerCase();
+      if (!nameKey) continue;
+      if (
+        nameKey.includes('inter') ||
+        nameKey.includes('nubank') ||
         c.id === 'card-inter' ||
-        c.id === 'card-nubank' ||
-        c.name.toLowerCase().includes('inter') ||
-        c.name.toLowerCase().includes('nubank')
-    );
-
-    if (hasLegacy) {
-      const filtered = parsed.filter(
-        (c) =>
-          c.id !== 'card-inter' &&
-          c.id !== 'card-nubank' &&
-          !c.name.toLowerCase().includes('inter') &&
-          !c.name.toLowerCase().includes('nubank')
-      );
-
-      // Garante que exista ao menos o Cartão de Crédito padrão se ficou vazio
-      const finalCards = filtered.length > 0 ? filtered : DEFAULT_CREDIT_CARDS;
-      localStorage.setItem(KEYS.CARDS, JSON.stringify(finalCards));
-      return finalCards;
+        c.id === 'card-nubank'
+      ) {
+        continue;
+      }
+      if (!seen.has(nameKey)) {
+        seen.add(nameKey);
+        cleaned.push(c);
+      }
     }
 
-    return parsed.length > 0 ? parsed : DEFAULT_CREDIT_CARDS;
+    const finalCards = cleaned.length > 0 ? cleaned : DEFAULT_CREDIT_CARDS;
+    localStorage.setItem(KEYS.CARDS, JSON.stringify(finalCards));
+    return finalCards;
   } catch (e) {
     console.error('Falha ao carregar cartões locais:', e);
     return DEFAULT_CREDIT_CARDS;
@@ -169,7 +168,23 @@ export const loadStoredFixedTemplates = (): FixedBillTemplate[] => {
       localStorage.setItem(KEYS.FIXED_TEMPLATES, JSON.stringify(DEFAULT_FIXED_BILLS_TEMPLATES));
       return DEFAULT_FIXED_BILLS_TEMPLATES;
     }
-    return JSON.parse(raw);
+    const parsed: FixedBillTemplate[] = JSON.parse(raw);
+
+    // Deduplica modelos de contas fixas por título
+    const seen = new Set<string>();
+    const cleaned: FixedBillTemplate[] = [];
+    for (const t of parsed) {
+      const titleKey = (t.title || '').trim().toLowerCase();
+      if (!titleKey) continue;
+      if (!seen.has(titleKey)) {
+        seen.add(titleKey);
+        cleaned.push(t);
+      }
+    }
+
+    const finalTpl = cleaned.length > 0 ? cleaned : DEFAULT_FIXED_BILLS_TEMPLATES;
+    localStorage.setItem(KEYS.FIXED_TEMPLATES, JSON.stringify(finalTpl));
+    return finalTpl;
   } catch (e) {
     console.error('Falha ao carregar modelo de contas fixas:', e);
     return DEFAULT_FIXED_BILLS_TEMPLATES;
@@ -376,12 +391,48 @@ export const syncWithCloud = async (
     saveStoredTransactions(unifiedTransactions);
     saveStoredSalaries(mergedSalaries);
 
-    // 5. Sync credit cards (safe try-catch)
+    // 5. Sync credit cards (safe try-catch com deduplicação)
     let unifiedCards: CreditCardInfo[] = localCards || [];
     try {
-      if (localCards && localCards.length > 0) {
-        const cardsToUpsert = localCards.map((c) => ({
-          id: isUUID(c.id) ? c.id : generateUUID(),
+      // Deduplica localCards por nome antes de qualquer operação
+      const seenLocal = new Set<string>();
+      const uniqueLocal: CreditCardInfo[] = [];
+      for (const lc of localCards || []) {
+        const k = (lc.name || '').trim().toLowerCase();
+        if (!k || k.includes('inter') || k.includes('nubank')) continue;
+        if (!seenLocal.has(k)) {
+          seenLocal.add(k);
+          uniqueLocal.push(lc);
+        }
+      }
+
+      const { data: remoteCards } = await supabase
+        .from('credit_cards')
+        .select('*')
+        .eq('user_id', userId);
+
+      const seenRemote = new Map<string, any>(); // key -> card row
+      const duplicateIdsToDelete: string[] = [];
+
+      for (const rc of remoteCards || []) {
+        const k = (rc.name || '').trim().toLowerCase();
+        if (!k || k.includes('inter') || k.includes('nubank') || rc.id === 'card-inter' || rc.id === 'card-nubank') {
+          duplicateIdsToDelete.push(rc.id);
+          continue;
+        }
+        if (seenRemote.has(k)) {
+          duplicateIdsToDelete.push(rc.id);
+        } else {
+          seenRemote.set(k, rc);
+        }
+      }
+
+      // Upsert dos cartões locais usando o ID remoto se já existir com o mesmo nome
+      const cardsToUpsert = (uniqueLocal.length > 0 ? uniqueLocal : DEFAULT_CREDIT_CARDS).map((c) => {
+        const k = (c.name || '').trim().toLowerCase();
+        const existingRemote = seenRemote.get(k);
+        return {
+          id: existingRemote?.id || (isUUID(c.id) ? c.id : generateUUID()),
           user_id: userId,
           name: c.name,
           brand: c.brand || 'Outro',
@@ -389,59 +440,75 @@ export const syncWithCloud = async (
           due_day: Number(c.due_day) || 22,
           limit_amount: c.limit_amount ? Number(c.limit_amount) : 0,
           color: c.color || '#8a05be',
-        }));
+        };
+      });
+
+      if (cardsToUpsert.length > 0) {
         await supabase.from('credit_cards').upsert(cardsToUpsert);
       }
-      const { data: remoteCards } = await supabase
-        .from('credit_cards')
-        .select('*')
-        .eq('user_id', userId);
-      if (remoteCards && remoteCards.length > 0) {
-        // Ignora e remove cartões legados (Inter e Nubank)
-        const cleanedRemote = remoteCards.filter(
-          (c: any) =>
-            c.id !== 'card-inter' &&
-            c.id !== 'card-nubank' &&
-            !c.name.toLowerCase().includes('inter') &&
-            !c.name.toLowerCase().includes('nubank')
-        );
 
-        unifiedCards = cleanedRemote.map((c: any) => ({
-          id: c.id,
-          user_id: c.user_id,
-          name: c.name,
-          brand: c.brand,
-          closing_day: c.closing_day,
-          due_day: c.due_day,
-          limit_amount: c.limit_amount,
-          color: c.color,
-        }));
-
-        if (unifiedCards.length === 0) {
-          unifiedCards = DEFAULT_CREDIT_CARDS;
-        }
-
-        saveStoredCards(unifiedCards);
-
-        // Limpa registros legados no Supabase em segundo plano
+      // Deleta cartões duplicados ou legados (Inter/Nubank) do banco remoto
+      if (duplicateIdsToDelete.length > 0) {
         Promise.resolve(
-          supabase
-            .from('credit_cards')
-            .delete()
-            .eq('user_id', userId)
-            .in('name', ['Cartão Inter', 'Cartão Nubank'])
+          supabase.from('credit_cards').delete().eq('user_id', userId).in('id', duplicateIdsToDelete)
         ).catch(() => {});
       }
+
+      // Constrói lista única final de cartões
+      const finalUniqueCards: CreditCardInfo[] = cardsToUpsert.map((c) => ({
+        id: c.id,
+        user_id: c.user_id,
+        name: c.name,
+        brand: c.brand,
+        closing_day: c.closing_day,
+        due_day: c.due_day,
+        limit_amount: c.limit_amount,
+        color: c.color,
+      }));
+
+      unifiedCards = finalUniqueCards.length > 0 ? finalUniqueCards : DEFAULT_CREDIT_CARDS;
+      saveStoredCards(unifiedCards);
     } catch (cardErr) {
       console.warn('Sync de cartões ignorado ou tabela não configurada:', cardErr);
     }
 
-    // 6. Sync fixed templates (safe try-catch)
+    // 6. Sync fixed templates (safe try-catch com deduplicação)
     let unifiedTemplates: FixedBillTemplate[] = localTemplates || [];
     try {
-      if (localTemplates && localTemplates.length > 0) {
-        const templatesToUpsert = localTemplates.map((t) => ({
-          id: isUUID(t.id) ? t.id : generateUUID(),
+      const seenLocalTpl = new Set<string>();
+      const uniqueLocalTpl: FixedBillTemplate[] = [];
+      for (const lt of localTemplates || []) {
+        const k = (lt.title || '').trim().toLowerCase();
+        if (!k) continue;
+        if (!seenLocalTpl.has(k)) {
+          seenLocalTpl.add(k);
+          uniqueLocalTpl.push(lt);
+        }
+      }
+
+      const { data: remoteTemplates } = await supabase
+        .from('fixed_templates')
+        .select('*')
+        .eq('user_id', userId);
+
+      const seenRemoteTpl = new Map<string, any>();
+      const duplicateTplIdsToDelete: string[] = [];
+
+      for (const rt of remoteTemplates || []) {
+        const k = (rt.title || '').trim().toLowerCase();
+        if (!k) continue;
+        if (seenRemoteTpl.has(k)) {
+          duplicateTplIdsToDelete.push(rt.id);
+        } else {
+          seenRemoteTpl.set(k, rt);
+        }
+      }
+
+      const templatesToUpsert = (uniqueLocalTpl.length > 0 ? uniqueLocalTpl : DEFAULT_FIXED_BILLS_TEMPLATES).map((t) => {
+        const k = (t.title || '').trim().toLowerCase();
+        const existingRemote = seenRemoteTpl.get(k);
+        return {
+          id: existingRemote?.id || (isUUID(t.id) ? t.id : generateUUID()),
           user_id: userId,
           title: t.title,
           account_type: t.account_type || t.title,
@@ -449,25 +516,29 @@ export const syncWithCloud = async (
           due_day: Number(t.due_day) || 10,
           category: 'fixed',
           updated_at: new Date().toISOString(),
-        }));
+        };
+      });
+
+      if (templatesToUpsert.length > 0) {
         await supabase.from('fixed_templates').upsert(templatesToUpsert);
       }
-      const { data: remoteTemplates } = await supabase
-        .from('fixed_templates')
-        .select('*')
-        .eq('user_id', userId);
-      if (remoteTemplates && remoteTemplates.length > 0) {
-        unifiedTemplates = remoteTemplates.map((t: any) => ({
-          id: t.id,
-          user_id: t.user_id,
-          title: t.title,
-          account_type: t.account_type,
-          default_amount: Number(t.default_amount) || 0,
-          due_day: t.due_day,
-          category: 'fixed',
-        }));
-        saveStoredFixedTemplates(unifiedTemplates);
+
+      if (duplicateTplIdsToDelete.length > 0) {
+        Promise.resolve(
+          supabase.from('fixed_templates').delete().eq('user_id', userId).in('id', duplicateTplIdsToDelete)
+        ).catch(() => {});
       }
+
+      unifiedTemplates = templatesToUpsert.map((t) => ({
+        id: t.id,
+        user_id: t.user_id,
+        title: t.title,
+        account_type: t.account_type,
+        default_amount: Number(t.default_amount) || 0,
+        due_day: t.due_day,
+        category: 'fixed',
+      }));
+      saveStoredFixedTemplates(unifiedTemplates);
     } catch (tplErr) {
       console.warn('Sync de modelos fixos ignorado ou tabela não configurada:', tplErr);
     }

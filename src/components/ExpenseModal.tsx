@@ -17,7 +17,9 @@ import { useFinance } from '../context/FinanceContext';
 import type { AccountCategory, PaymentStatus, FixedBillTemplate, CreditCardInfo } from '../types/finance';
 import { 
   PREDEFINED_OTHER_ACCOUNTS, 
-  getAvailableMonths 
+  getAvailableMonths,
+  DEFAULT_CREDIT_CARDS,
+  DEFAULT_FIXED_BILLS_TEMPLATES
 } from '../utils/finance';
 import clsx from 'clsx';
 
@@ -42,6 +44,38 @@ export const ExpenseModal: React.FC = () => {
   const [accountType, setAccountType] = useState<string>('Internet');
   const [status, setStatus] = useState<PaymentStatus>('pending');
   const [notes, setNotes] = useState('');
+
+  // Deduplicação e filtragem rigorosa de cartões para a interface
+  const availableCards = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: CreditCardInfo[] = [];
+    for (const c of cards) {
+      const k = (c.name || '').trim().toLowerCase();
+      if (!k || k.includes('inter') || k.includes('nubank') || c.id === 'card-inter' || c.id === 'card-nubank') {
+        continue;
+      }
+      if (!seen.has(k)) {
+        seen.add(k);
+        list.push(c);
+      }
+    }
+    return list.length > 0 ? list : DEFAULT_CREDIT_CARDS;
+  }, [cards]);
+
+  // Deduplicação de contas fixas
+  const availableFixedTemplates = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: FixedBillTemplate[] = [];
+    for (const t of fixedTemplates) {
+      const k = (t.title || '').trim().toLowerCase();
+      if (!k) continue;
+      if (!seen.has(k)) {
+        seen.add(k);
+        list.push(t);
+      }
+    }
+    return list.length > 0 ? list : DEFAULT_FIXED_BILLS_TEMPLATES;
+  }, [fixedTemplates]);
 
   // When modal opens or editingTransaction changes
   useEffect(() => {
@@ -213,14 +247,14 @@ export const ExpenseModal: React.FC = () => {
             </label>
             <div className="space-y-3">
               {/* Contas Fixas Personalizadas */}
-              {fixedTemplates.length > 0 && (
+              {availableFixedTemplates.length > 0 && (
                 <div>
                   <span className="text-[11px] text-slate-400 block mb-1 font-semibold flex items-center gap-1.5">
                     <Bookmark className="w-3.5 h-3.5 text-emerald-400" />
                     Suas Contas Fixas:
                   </span>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {fixedTemplates.map((tpl) => {
+                    {availableFixedTemplates.map((tpl) => {
                       const isSelected = category === 'fixed' && (accountType === tpl.account_type || accountType === tpl.title);
                       return (
                         <button
@@ -250,7 +284,7 @@ export const ExpenseModal: React.FC = () => {
                   Cartões de Crédito:
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {cards.map((c) => {
+                  {availableCards.map((c) => {
                     const isSelected = category === 'card' && accountType === c.name;
                     return (
                       <button
@@ -269,21 +303,6 @@ export const ExpenseModal: React.FC = () => {
                       </button>
                     );
                   })}
-                  {cards.length === 0 && (
-                    <button
-                      type="button"
-                      onClick={() => handleSelectCard({ id: 'default', name: 'Cartão de Crédito', closing_day: 15, due_day: 22 })}
-                      className={clsx(
-                        'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition border text-left',
-                        category === 'card'
-                          ? 'bg-purple-600 text-white border-purple-500'
-                          : 'bg-slate-800/80 text-slate-300 border-slate-700/80'
-                      )}
-                    >
-                      <CreditCard className="w-4 h-4 text-purple-400" />
-                      <span>Cartão de Crédito</span>
-                    </button>
-                  )}
                 </div>
               </div>
 

@@ -140,28 +140,72 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     saveStoredFixedTemplates(fixedTemplates);
   }, [fixedTemplates]);
 
-  // Migração e saneamento automático de cartões e faturas legadas (Inter e Nubank)
+  // Migração, saneamento e DEDUPLICAÇÃO rigorosa de cartões
   useEffect(() => {
-    const hasLegacyCards = cards.some(
-      (c) =>
+    const seen = new Set<string>();
+    const cleaned: CreditCardInfo[] = [];
+    let needsUpdate = false;
+
+    for (const c of cards) {
+      const nameKey = (c.name || '').trim().toLowerCase();
+      // Remove cartões legados (Inter e Nubank)
+      if (
+        !nameKey ||
+        nameKey.includes('inter') ||
+        nameKey.includes('nubank') ||
         c.id === 'card-inter' ||
-        c.id === 'card-nubank' ||
-        c.name.toLowerCase().includes('inter') ||
-        c.name.toLowerCase().includes('nubank')
-    );
-    if (hasLegacyCards) {
-      const filtered = cards.filter(
-        (c) =>
-          c.id !== 'card-inter' &&
-          c.id !== 'card-nubank' &&
-          !c.name.toLowerCase().includes('inter') &&
-          !c.name.toLowerCase().includes('nubank')
-      );
-      const finalCards = filtered.length > 0 ? filtered : DEFAULT_CREDIT_CARDS;
-      setCards(finalCards);
-      saveStoredCards(finalCards);
+        c.id === 'card-nubank'
+      ) {
+        needsUpdate = true;
+        continue;
+      }
+      // Descarta duplicatas com o mesmo nome
+      if (seen.has(nameKey)) {
+        needsUpdate = true;
+        continue;
+      }
+      seen.add(nameKey);
+      cleaned.push(c);
+    }
+
+    if (cleaned.length === 0) {
+      cleaned.push(DEFAULT_CREDIT_CARDS[0]);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate || cleaned.length !== cards.length) {
+      setCards(cleaned);
+      saveStoredCards(cleaned);
     }
   }, [cards]);
+
+  // Deduplicação de modelos de contas fixas
+  useEffect(() => {
+    const seen = new Set<string>();
+    const cleaned: FixedBillTemplate[] = [];
+    let needsUpdate = false;
+
+    for (const t of fixedTemplates) {
+      const k = (t.title || '').trim().toLowerCase();
+      if (!k) continue;
+      if (seen.has(k)) {
+        needsUpdate = true;
+        continue;
+      }
+      seen.add(k);
+      cleaned.push(t);
+    }
+
+    if (cleaned.length === 0) {
+      cleaned.push(...DEFAULT_FIXED_BILLS_TEMPLATES);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate || cleaned.length !== fixedTemplates.length) {
+      setFixedTemplates(cleaned);
+      saveStoredFixedTemplates(cleaned);
+    }
+  }, [fixedTemplates]);
 
   useEffect(() => {
     const hasLegacyTx = transactions.some(
