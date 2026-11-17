@@ -15,7 +15,8 @@ import {
   Droplets,
   Home,
   ShoppingBag,
-  MoreHorizontal
+  MoreHorizontal,
+  Receipt
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { FinanceCard } from '../components/FinanceCard';
@@ -212,7 +213,7 @@ export const Dashboard: React.FC = () => {
           title="Despesas Totais"
           value={formatCurrency(summary.totalExpenses)}
           subtitle={`Pagas: ${formatCurrency(summary.paidExpenses)} | Pendentes: ${formatCurrency(summary.pendingExpenses)}`}
-          icon={<CreditCard className="w-5 h-5" />}
+          icon={<Receipt className="w-5 h-5" />}
           variant="default"
           onClick={() => navigate('/expenses')}
         />
@@ -268,8 +269,8 @@ export const Dashboard: React.FC = () => {
                 <CreditCard className="w-4 h-4" />
               </span>
               <div>
-                <h4 className="text-sm font-bold text-white">Faturas de Cartão</h4>
-                <p className="text-xs text-slate-400">Cartão de Crédito</p>
+                <h4 className="text-sm font-bold text-white">Cartão de Crédito</h4>
+                <p className="text-xs text-slate-400">Faturas e limites cadastrados</p>
               </div>
             </div>
             <span className="text-xl font-extrabold text-purple-400">

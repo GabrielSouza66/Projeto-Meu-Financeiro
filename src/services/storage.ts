@@ -27,7 +27,53 @@ export const loadStoredTransactions = (): Transaction[] => {
       localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(initial));
       return initial;
     }
-    return JSON.parse(raw);
+    const parsed: Transaction[] = JSON.parse(raw);
+
+    // Limpeza e migração automática de lançamentos legados "Inter" e "Nubank"
+    const hasLegacyCards = parsed.some(
+      (t) =>
+        t.category === 'card' &&
+        (t.title.toLowerCase().includes('inter') ||
+          t.title.toLowerCase().includes('nubank') ||
+          t.account_type.toLowerCase().includes('inter') ||
+          t.account_type.toLowerCase().includes('nubank'))
+    );
+
+    if (hasLegacyCards) {
+      const cleaned: Transaction[] = [];
+      const seenCardMonth = new Set<string>();
+
+      for (const tx of parsed) {
+        const isLegacyCard =
+          tx.category === 'card' &&
+          (tx.title.toLowerCase().includes('inter') ||
+            tx.title.toLowerCase().includes('nubank') ||
+            tx.account_type.toLowerCase().includes('inter') ||
+            tx.account_type.toLowerCase().includes('nubank'));
+
+        if (isLegacyCard) {
+          if (!seenCardMonth.has(tx.month_ref)) {
+            cleaned.push({
+              ...tx,
+              title: 'Fatura Cartão de Crédito',
+              account_type: 'Cartão de Crédito',
+            });
+            seenCardMonth.add(tx.month_ref);
+          }
+          // Descarta duplicatas legadas do mesmo mês
+        } else {
+          if (tx.category === 'card' && tx.account_type === 'Cartão de Crédito') {
+            seenCardMonth.add(tx.month_ref);
+          }
+          cleaned.push(tx);
+        }
+      }
+
+      localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(cleaned));
+      return cleaned;
+    }
+
+    return parsed;
   } catch (e) {
     console.error('Falha ao carregar transações locais:', e);
     return getDefaultTransactions(currentMonth);
@@ -75,7 +121,33 @@ export const loadStoredCards = (): CreditCardInfo[] => {
       localStorage.setItem(KEYS.CARDS, JSON.stringify(DEFAULT_CREDIT_CARDS));
       return DEFAULT_CREDIT_CARDS;
     }
-    return JSON.parse(raw);
+    const parsed: CreditCardInfo[] = JSON.parse(raw);
+
+    // Limpeza de cartões legados (Inter e Nubank) para manter apenas "Cartão de Crédito" ou personalizados do usuário
+    const hasLegacy = parsed.some(
+      (c) =>
+        c.id === 'card-inter' ||
+        c.id === 'card-nubank' ||
+        c.name.toLowerCase().includes('inter') ||
+        c.name.toLowerCase().includes('nubank')
+    );
+
+    if (hasLegacy) {
+      const filtered = parsed.filter(
+        (c) =>
+          c.id !== 'card-inter' &&
+          c.id !== 'card-nubank' &&
+          !c.name.toLowerCase().includes('inter') &&
+          !c.name.toLowerCase().includes('nubank')
+      );
+
+      // Garante que exista ao menos o Cartão de Crédito padrão se ficou vazio
+      const finalCards = filtered.length > 0 ? filtered : DEFAULT_CREDIT_CARDS;
+      localStorage.setItem(KEYS.CARDS, JSON.stringify(finalCards));
+      return finalCards;
+    }
+
+    return parsed.length > 0 ? parsed : DEFAULT_CREDIT_CARDS;
   } catch (e) {
     console.error('Falha ao carregar cartões locais:', e);
     return DEFAULT_CREDIT_CARDS;
@@ -325,7 +397,16 @@ export const syncWithCloud = async (
         .select('*')
         .eq('user_id', userId);
       if (remoteCards && remoteCards.length > 0) {
-        unifiedCards = remoteCards.map((c: any) => ({
+        // Ignora e remove cartões legados (Inter e Nubank)
+        const cleanedRemote = remoteCards.filter(
+          (c: any) =>
+            c.id !== 'card-inter' &&
+            c.id !== 'card-nubank' &&
+            !c.name.toLowerCase().includes('inter') &&
+            !c.name.toLowerCase().includes('nubank')
+        );
+
+        unifiedCards = cleanedRemote.map((c: any) => ({
           id: c.id,
           user_id: c.user_id,
           name: c.name,
@@ -335,7 +416,21 @@ export const syncWithCloud = async (
           limit_amount: c.limit_amount,
           color: c.color,
         }));
+
+        if (unifiedCards.length === 0) {
+          unifiedCards = DEFAULT_CREDIT_CARDS;
+        }
+
         saveStoredCards(unifiedCards);
+
+        // Limpa registros legados no Supabase em segundo plano
+        Promise.resolve(
+          supabase
+            .from('credit_cards')
+            .delete()
+            .eq('user_id', userId)
+            .in('name', ['Cartão Inter', 'Cartão Nubank'])
+        ).catch(() => {});
       }
     } catch (cardErr) {
       console.warn('Sync de cartões ignorado ou tabela não configurada:', cardErr);

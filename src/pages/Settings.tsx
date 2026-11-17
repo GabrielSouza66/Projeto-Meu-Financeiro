@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { getStoredSupabaseConfig, saveSupabaseConfig } from '../services/supabase';
-import { formatCurrency, DEFAULT_FIXED_BILLS_TEMPLATES } from '../utils/finance';
+import { formatCurrency, DEFAULT_FIXED_BILLS_TEMPLATES, DEFAULT_CREDIT_CARDS } from '../utils/finance';
 import type { CreditCardInfo, FixedBillTemplate } from '../types/finance';
 import clsx from 'clsx';
 
@@ -190,6 +190,13 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handleResetCards = () => {
+    if (confirm('Deseja restaurar para apenas o "Cartão de Crédito" padrão?')) {
+      cards.forEach((c) => deleteCard(c.id));
+      addCard(DEFAULT_CREDIT_CARDS[0]);
+    }
+  };
+
   // Template Handlers
   const handleOpenNewTemplate = () => {
     setEditingTemplate(null);
@@ -339,13 +346,22 @@ export const Settings: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={handleOpenNewCard}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition shadow"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Novo Cartão</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResetCards}
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition border border-slate-700"
+              title="Restaura os cartões para apenas 'Cartão de Crédito' padrão"
+            >
+              <span>Restaurar Padrão</span>
+            </button>
+            <button
+              onClick={handleOpenNewCard}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition shadow"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Novo Cartão</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
@@ -704,7 +720,7 @@ export const Settings: React.FC = () => {
                   required
                   value={cardName}
                   onChange={(e) => setCardName(e.target.value)}
-                  placeholder="Ex: Nubank, Inter, XP, Itaú..."
+                  placeholder="Ex: Cartão Principal, Visa Infinite, XP, Itaú..."
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-purple-500"
                 />
               </div>

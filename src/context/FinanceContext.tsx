@@ -140,6 +140,72 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     saveStoredFixedTemplates(fixedTemplates);
   }, [fixedTemplates]);
 
+  // Migração e saneamento automático de cartões e faturas legadas (Inter e Nubank)
+  useEffect(() => {
+    const hasLegacyCards = cards.some(
+      (c) =>
+        c.id === 'card-inter' ||
+        c.id === 'card-nubank' ||
+        c.name.toLowerCase().includes('inter') ||
+        c.name.toLowerCase().includes('nubank')
+    );
+    if (hasLegacyCards) {
+      const filtered = cards.filter(
+        (c) =>
+          c.id !== 'card-inter' &&
+          c.id !== 'card-nubank' &&
+          !c.name.toLowerCase().includes('inter') &&
+          !c.name.toLowerCase().includes('nubank')
+      );
+      const finalCards = filtered.length > 0 ? filtered : DEFAULT_CREDIT_CARDS;
+      setCards(finalCards);
+      saveStoredCards(finalCards);
+    }
+  }, [cards]);
+
+  useEffect(() => {
+    const hasLegacyTx = transactions.some(
+      (t) =>
+        t.category === 'card' &&
+        (t.title.toLowerCase().includes('inter') ||
+          t.title.toLowerCase().includes('nubank') ||
+          t.account_type.toLowerCase().includes('inter') ||
+          t.account_type.toLowerCase().includes('nubank'))
+    );
+    if (hasLegacyTx) {
+      const cleaned: Transaction[] = [];
+      const seenCardMonth = new Set<string>();
+
+      for (const tx of transactions) {
+        const isLegacyCard =
+          tx.category === 'card' &&
+          (tx.title.toLowerCase().includes('inter') ||
+            tx.title.toLowerCase().includes('nubank') ||
+            tx.account_type.toLowerCase().includes('inter') ||
+            tx.account_type.toLowerCase().includes('nubank'));
+
+        if (isLegacyCard) {
+          if (!seenCardMonth.has(tx.month_ref)) {
+            cleaned.push({
+              ...tx,
+              title: 'Fatura Cartão de Crédito',
+              account_type: 'Cartão de Crédito',
+            });
+            seenCardMonth.add(tx.month_ref);
+          }
+        } else {
+          if (tx.category === 'card' && tx.account_type === 'Cartão de Crédito') {
+            seenCardMonth.add(tx.month_ref);
+          }
+          cleaned.push(tx);
+        }
+      }
+
+      setTransactions(cleaned);
+      saveStoredTransactions(cleaned);
+    }
+  }, [transactions]);
+
   // Check Supabase Auth session on mount
   useEffect(() => {
     const supabase = getSupabaseClient();

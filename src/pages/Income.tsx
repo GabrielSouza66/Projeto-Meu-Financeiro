@@ -182,7 +182,7 @@ export const Income: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs text-slate-300 font-semibold mb-1">
-              <span>Cartões Inter + Nubank ({formatCurrency(summary.cardExpenses)})</span>
+              <span>Cartão de Crédito ({formatCurrency(summary.cardExpenses)})</span>
               <span>{summary.totalIncome > 0 ? ((summary.cardExpenses / summary.totalIncome) * 100).toFixed(1) : 0}% da renda</span>
             </div>
             <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
