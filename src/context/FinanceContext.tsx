@@ -58,6 +58,8 @@ interface FinanceContextType {
   syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
   syncMessage: string;
   syncNow: () => Promise<void>;
+  saveAndSync: () => Promise<{ success: boolean; message: string }>;
+  lastSavedAt: Date | null;
   user: any;
   isCloudConfigured: boolean;
   isExpenseModalOpen: boolean;
@@ -98,6 +100,10 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [user, setUser] = useState<any>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(() => {
+    const saved = localStorage.getItem('meu_financeiro_last_saved');
+    return saved ? new Date(saved) : null;
+  });
   
   const isCloudConfigured = useMemo(() => {
     const config = getStoredSupabaseConfig();
@@ -530,31 +536,58 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     setFixedTemplates(DEFAULT_FIXED_BILLS_TEMPLATES);
   };
 
-  const syncNow = async () => {
-    if (!user) {
+  const saveAndSync = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      // 1. Gravação local explícita imediata
+      saveStoredTransactions(transactions);
+      saveStoredSalaries(salaries);
+      saveStoredCards(cards);
+      saveStoredFixedTemplates(fixedTemplates);
+
+      const now = new Date();
+      setLastSavedAt(now);
+      localStorage.setItem('meu_financeiro_last_saved', now.toISOString());
+
+      // 2. Sincronização com o Supabase se o usuário estiver autenticado
+      if (user) {
+        setSyncStatus('syncing');
+        setSyncMessage('Salvando e sincronizando dados com o Supabase...');
+
+        const result = await syncWithCloud(user.id, transactions, salaries, cards, fixedTemplates);
+        if (result.success) {
+          if (result.transactions) setTransactions(result.transactions);
+          if (result.salaries) setSalaries(result.salaries);
+          if (result.cards && result.cards.length > 0) setCards(result.cards);
+          if (result.fixedTemplates && result.fixedTemplates.length > 0) setFixedTemplates(result.fixedTemplates);
+          setSyncStatus('synced');
+          setSyncMessage(result.message || 'Dados salvos e sincronizados com a nuvem com sucesso!');
+          setTimeout(() => setSyncStatus('idle'), 5000);
+          return { success: true, message: result.message || 'Dados salvos e sincronizados com a nuvem!' };
+        } else {
+          setSyncStatus('error');
+          setSyncMessage(result.message);
+          setTimeout(() => setSyncStatus('idle'), 6000);
+          return { success: false, message: result.message };
+        }
+      } else {
+        // Usuário no modo local: dados garantidos localmente
+        setSyncStatus('synced');
+        const msg = 'Alterações salvas com sucesso no seu dispositivo! Faça login para salvar na nuvem.';
+        setSyncMessage(msg);
+        setTimeout(() => setSyncStatus('idle'), 4000);
+        return { success: true, message: msg };
+      }
+    } catch (err: any) {
+      console.error('Erro em saveAndSync:', err);
       setSyncStatus('error');
-      setSyncMessage('Faça login com e-mail para sincronizar na nuvem.');
-      setTimeout(() => setSyncStatus('idle'), 4000);
-      return;
-    }
-
-    setSyncStatus('syncing');
-    setSyncMessage('Sincronizando dados com o Supabase...');
-
-    const result = await syncWithCloud(user.id, transactions, salaries, cards, fixedTemplates);
-    if (result.success) {
-      if (result.transactions) setTransactions(result.transactions);
-      if (result.salaries) setSalaries(result.salaries);
-      if (result.cards && result.cards.length > 0) setCards(result.cards);
-      if (result.fixedTemplates && result.fixedTemplates.length > 0) setFixedTemplates(result.fixedTemplates);
-      setSyncStatus('synced');
-      setSyncMessage(result.message);
+      setSyncMessage('Erro ao salvar alterações.');
       setTimeout(() => setSyncStatus('idle'), 5000);
-    } else {
-      setSyncStatus('error');
-      setSyncMessage(result.message);
-      setTimeout(() => setSyncStatus('idle'), 6000);
+      return { success: false, message: err?.message || 'Erro ao salvar alterações.' };
     }
+  };
+
+  const syncNow = async () => {
+    await saveAndSync();
   };
 
   return (
@@ -587,6 +620,8 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
         syncStatus,
         syncMessage,
         syncNow,
+        saveAndSync,
+        lastSavedAt,
         user,
         isCloudConfigured,
         isExpenseModalOpen,

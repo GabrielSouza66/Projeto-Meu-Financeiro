@@ -18,7 +18,10 @@ import {
   Home,
   ShoppingBag,
   MoreHorizontal,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Save,
+  Cloud,
+  AlertCircle
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDateBR, formatMonthRef } from '../utils/finance';
@@ -36,12 +39,48 @@ export const Expenses: React.FC = () => {
     setIsExpenseModalOpen,
     generateFixedBillsForMonth,
     summary,
+    saveAndSync,
+    lastSavedAt,
+    user,
+    setIsAuthModalOpen,
+    setAuthModalMode,
   } = useFinance();
 
   const navigate = useNavigate();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'fixed' | 'card' | 'other' | 'pending' | 'paid'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [feedbackMessage, setFeedbackMessage] = useState<string>('');
+
+  const handleSave = async () => {
+    setSaveState('saving');
+    setFeedbackMessage('Salvando alterações localmente e sincronizando com a nuvem...');
+
+    const res = await saveAndSync();
+    if (res.success) {
+      setSaveState('success');
+      setFeedbackMessage(
+        user
+          ? 'Tudo certo! Todas as alterações foram salvas e sincronizadas na nuvem.'
+          : 'Alterações salvas com sucesso no seu dispositivo! Faça login para manter sincronizado na nuvem.'
+      );
+      setTimeout(() => {
+        setSaveState('idle');
+        setFeedbackMessage('');
+      }, 5000);
+    } else {
+      setSaveState('error');
+      setFeedbackMessage(res.message || 'Erro ao sincronizar com a nuvem.');
+      setTimeout(() => {
+        setSaveState('idle');
+      }, 6000);
+    }
+  };
+
+  const lastSavedTime = lastSavedAt
+    ? new Date(lastSavedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    : null;
 
   // Filtering
   const filteredList = monthTransactions.filter((tx) => {
@@ -331,6 +370,112 @@ export const Expenses: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Painel de Salvar e Sincronizar ao Final da Página */}
+      <div className="mt-8 p-5 sm:p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl transition-all">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+          {/* Info do Salvamento */}
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 text-emerald-400">
+              <Save className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-white">
+                  Salvar e Sincronizar Alterações
+                </h3>
+                {user ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <Cloud className="w-3 h-3" />
+                    Nuvem Conectada
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                    Modo Local
+                  </span>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                {user
+                  ? `Salva os lançamentos no dispositivo e sincroniza com sua nuvem (${user.email}).`
+                  : 'Salva todas as suas contas com segurança no dispositivo. Faça login para salvar na nuvem.'}
+              </p>
+              {lastSavedTime && (
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium mt-1.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Último salvamento: hoje às {lastSavedTime}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Botões de Ação */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
+            {!user && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthModalMode('login');
+                  setIsAuthModalOpen(true);
+                }}
+                className="w-full sm:w-auto px-4 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition flex items-center justify-center gap-2"
+                title="Fazer login para sincronizar na nuvem"
+              >
+                <Cloud className="w-4 h-4 text-purple-400" />
+                <span>Entrar na Nuvem</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saveState === 'saving'}
+              className={clsx(
+                'w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl font-black text-sm text-white transition-all shadow-lg active:scale-95 disabled:opacity-75',
+                saveState === 'success'
+                  ? 'bg-emerald-500 shadow-emerald-950/40'
+                  : saveState === 'error'
+                  ? 'bg-rose-600 shadow-rose-950/40'
+                  : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950/50 hover:shadow-emerald-600/25'
+              )}
+            >
+              {saveState === 'saving' ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                  <span>Salvando & Sincronizando...</span>
+                </>
+              ) : saveState === 'success' ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-100" />
+                  <span>Salvo com Sucesso!</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 stroke-[2.5]" />
+                  <span>Salvar Alterações</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Mensagem de Feedback */}
+        {feedbackMessage && (
+          <div
+            className={clsx(
+              'mt-4 p-3 rounded-2xl text-xs flex items-center gap-2 transition-all',
+              saveState === 'success' && 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30',
+              saveState === 'error' && 'bg-rose-500/15 text-rose-300 border border-rose-500/30',
+              saveState === 'saving' && 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+            )}
+          >
+            {saveState === 'saving' && <RefreshCw className="w-4 h-4 animate-spin text-amber-400 shrink-0" />}
+            {saveState === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+            {saveState === 'error' && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />}
+            <span className="font-semibold">{feedbackMessage}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

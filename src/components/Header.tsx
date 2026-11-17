@@ -135,7 +135,7 @@ export const Header: React.FC = () => {
                 <button
                   onClick={() => syncNow()}
                   disabled={syncStatus === 'syncing'}
-                  title="Clique para sincronizar com a nuvem"
+                  title="Clique para salvar e sincronizar com a nuvem"
                   className={clsx(
                     'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition shadow-sm',
                     syncStatus === 'syncing' && 'bg-amber-500/10 border-amber-500/40 text-amber-300 cursor-wait',
@@ -147,12 +147,12 @@ export const Header: React.FC = () => {
                   {syncStatus === 'syncing' ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                      <span className="hidden sm:inline">Sincronizando...</span>
+                      <span className="hidden sm:inline">Salvando...</span>
                     </>
                   ) : syncStatus === 'synced' ? (
                     <>
                       <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="hidden sm:inline">Sincronizado</span>
+                      <span className="hidden sm:inline">Salvo & Nuvem</span>
                     </>
                   ) : syncStatus === 'error' ? (
                     <>
@@ -162,7 +162,7 @@ export const Header: React.FC = () => {
                   ) : (
                     <>
                       <Cloud className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="hidden sm:inline">Sincronizar</span>
+                      <span className="hidden sm:inline">Salvar na Nuvem</span>
                     </>
                   )}
                 </button>
