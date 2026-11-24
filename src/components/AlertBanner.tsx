@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, CheckCircle2, AlertOctagon, ArrowRight } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, AlertOctagon, ArrowRight, Sparkles } from 'lucide-react';
 import type { MonthlySummary } from '../types/finance';
 import { formatCurrency, formatPercent } from '../utils/finance';
 
@@ -10,6 +10,46 @@ interface AlertBannerProps {
 
 export const AlertBanner: React.FC<AlertBannerProps> = ({ summary, onManageClick }) => {
   const { alertLevel, commitmentRate, balanceForecast, totalExpenses, totalIncome } = summary;
+
+  if (totalIncome === 0 && totalExpenses === 0) {
+    return (
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-slate-950 p-4 sm:p-5 border border-slate-800 shadow-md">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl shrink-0">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold px-2 py-0.5 rounded-full">
+                  Pronto para Começar
+                </span>
+                <span className="text-xs font-medium text-slate-400">
+                  Visão Inicial Limpa
+                </span>
+              </div>
+              <h4 className="text-sm sm:text-base font-bold text-white mt-1">
+                Nenhum dado cadastrado para este mês
+              </h4>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Cadastre seus lançamentos e salário líquido, ou faça login para sincronizar e carregar os dados da sua conta.
+              </p>
+            </div>
+          </div>
+
+          {onManageClick && (
+            <button
+              onClick={onManageClick}
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 text-xs font-bold transition active:scale-95 shrink-0"
+            >
+              <span>Novo Lançamento</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (alertLevel === 'danger') {
     const deficit = Math.abs(balanceForecast);

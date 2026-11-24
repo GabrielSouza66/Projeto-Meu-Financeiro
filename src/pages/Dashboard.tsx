@@ -248,7 +248,7 @@ export const Dashboard: React.FC = () => {
                   <div key={tpl.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60">
                     <span className="text-slate-400 truncate">{tpl.title}</span>
                     <span className="font-semibold text-slate-200">
-                      {item ? formatCurrency(item.amount) : formatCurrency(tpl.default_amount)}
+                      {item ? formatCurrency(item.amount) : formatCurrency(0)}
                     </span>
                   </div>
                 );

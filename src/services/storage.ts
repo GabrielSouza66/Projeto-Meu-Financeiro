@@ -18,16 +18,30 @@ const KEYS = {
   THEME: 'meu_financeiro_theme',
 };
 
-export const loadStoredTransactions = (): Transaction[] => {
-  const currentMonth = getCurrentMonthRef();
+const getTxKey = (userId?: string | null) => (userId ? `${KEYS.TRANSACTIONS}_${userId}` : KEYS.TRANSACTIONS);
+const getSalKey = (userId?: string | null) => (userId ? `${KEYS.SALARIES}_${userId}` : KEYS.SALARIES);
+const getCardsKey = (userId?: string | null) => (userId ? `${KEYS.CARDS}_${userId}` : KEYS.CARDS);
+const getTemplatesKey = (userId?: string | null) => (userId ? `${KEYS.FIXED_TEMPLATES}_${userId}` : KEYS.FIXED_TEMPLATES);
+
+export const clearUserStorage = () => {
   try {
-    const raw = localStorage.getItem(KEYS.TRANSACTIONS);
+    localStorage.removeItem(KEYS.TRANSACTIONS);
+    localStorage.removeItem(KEYS.SALARIES);
+    localStorage.removeItem('meu_financeiro_last_saved');
+  } catch (e) {
+    console.error('Falha ao limpar armazenamento:', e);
+  }
+};
+
+export const loadStoredTransactions = (userId?: string | null): Transaction[] => {
+  try {
+    const key = getTxKey(userId);
+    const raw = localStorage.getItem(key);
     if (!raw) {
-      const initial = getDefaultTransactions(currentMonth);
-      localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(initial));
-      return initial;
+      return [];
     }
     const parsed: Transaction[] = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
 
     // Limpeza e migração automática de lançamentos legados "Inter" e "Nubank"
     const hasLegacyCards = parsed.some(
@@ -60,7 +74,6 @@ export const loadStoredTransactions = (): Transaction[] => {
             });
             seenCardMonth.add(tx.month_ref);
           }
-          // Descarta duplicatas legadas do mesmo mês
         } else {
           if (tx.category === 'card' && tx.account_type === 'Cartão de Crédito') {
             seenCardMonth.add(tx.month_ref);
@@ -69,56 +82,55 @@ export const loadStoredTransactions = (): Transaction[] => {
         }
       }
 
-      localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(cleaned));
+      localStorage.setItem(key, JSON.stringify(cleaned));
       return cleaned;
     }
 
     return parsed;
   } catch (e) {
     console.error('Falha ao carregar transações locais:', e);
-    return getDefaultTransactions(currentMonth);
+    return [];
   }
 };
 
-export const saveStoredTransactions = (transactions: Transaction[]) => {
+export const saveStoredTransactions = (transactions: Transaction[], userId?: string | null) => {
   try {
-    localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(transactions));
+    const key = getTxKey(userId);
+    localStorage.setItem(key, JSON.stringify(transactions));
   } catch (e) {
     console.error('Falha ao salvar transações locais:', e);
   }
 };
 
-export const loadStoredSalaries = (): Record<string, SalaryInfo> => {
-  const currentMonth = getCurrentMonthRef();
+export const loadStoredSalaries = (userId?: string | null): Record<string, SalaryInfo> => {
   try {
-    const raw = localStorage.getItem(KEYS.SALARIES);
+    const key = getSalKey(userId);
+    const raw = localStorage.getItem(key);
     if (!raw) {
-      const initial: Record<string, SalaryInfo> = {
-        [currentMonth]: getDefaultSalary(currentMonth),
-      };
-      localStorage.setItem(KEYS.SALARIES, JSON.stringify(initial));
-      return initial;
+      return {};
     }
-    return JSON.parse(raw);
+    return JSON.parse(raw) || {};
   } catch (e) {
     console.error('Falha ao carregar salários locais:', e);
-    return { [currentMonth]: getDefaultSalary(currentMonth) };
+    return {};
   }
 };
 
-export const saveStoredSalaries = (salaries: Record<string, SalaryInfo>) => {
+export const saveStoredSalaries = (salaries: Record<string, SalaryInfo>, userId?: string | null) => {
   try {
-    localStorage.setItem(KEYS.SALARIES, JSON.stringify(salaries));
+    const key = getSalKey(userId);
+    localStorage.setItem(key, JSON.stringify(salaries));
   } catch (e) {
     console.error('Falha ao salvar salários locais:', e);
   }
 };
 
-export const loadStoredCards = (): CreditCardInfo[] => {
+export const loadStoredCards = (userId?: string | null): CreditCardInfo[] => {
   try {
-    const raw = localStorage.getItem(KEYS.CARDS);
+    const key = getCardsKey(userId);
+    const raw = localStorage.getItem(key);
     if (!raw) {
-      localStorage.setItem(KEYS.CARDS, JSON.stringify(DEFAULT_CREDIT_CARDS));
+      localStorage.setItem(key, JSON.stringify(DEFAULT_CREDIT_CARDS));
       return DEFAULT_CREDIT_CARDS;
     }
     const parsed: CreditCardInfo[] = JSON.parse(raw);
@@ -145,7 +157,7 @@ export const loadStoredCards = (): CreditCardInfo[] => {
     }
 
     const finalCards = cleaned.length > 0 ? cleaned : DEFAULT_CREDIT_CARDS;
-    localStorage.setItem(KEYS.CARDS, JSON.stringify(finalCards));
+    localStorage.setItem(key, JSON.stringify(finalCards));
     return finalCards;
   } catch (e) {
     console.error('Falha ao carregar cartões locais:', e);
@@ -153,19 +165,21 @@ export const loadStoredCards = (): CreditCardInfo[] => {
   }
 };
 
-export const saveStoredCards = (cards: CreditCardInfo[]) => {
+export const saveStoredCards = (cards: CreditCardInfo[], userId?: string | null) => {
   try {
-    localStorage.setItem(KEYS.CARDS, JSON.stringify(cards));
+    const key = getCardsKey(userId);
+    localStorage.setItem(key, JSON.stringify(cards));
   } catch (e) {
     console.error('Falha ao salvar cartões locais:', e);
   }
 };
 
-export const loadStoredFixedTemplates = (): FixedBillTemplate[] => {
+export const loadStoredFixedTemplates = (userId?: string | null): FixedBillTemplate[] => {
   try {
-    const raw = localStorage.getItem(KEYS.FIXED_TEMPLATES);
+    const key = getTemplatesKey(userId);
+    const raw = localStorage.getItem(key);
     if (!raw) {
-      localStorage.setItem(KEYS.FIXED_TEMPLATES, JSON.stringify(DEFAULT_FIXED_BILLS_TEMPLATES));
+      localStorage.setItem(key, JSON.stringify(DEFAULT_FIXED_BILLS_TEMPLATES));
       return DEFAULT_FIXED_BILLS_TEMPLATES;
     }
     const parsed: FixedBillTemplate[] = JSON.parse(raw);
@@ -183,7 +197,7 @@ export const loadStoredFixedTemplates = (): FixedBillTemplate[] => {
     }
 
     const finalTpl = cleaned.length > 0 ? cleaned : DEFAULT_FIXED_BILLS_TEMPLATES;
-    localStorage.setItem(KEYS.FIXED_TEMPLATES, JSON.stringify(finalTpl));
+    localStorage.setItem(key, JSON.stringify(finalTpl));
     return finalTpl;
   } catch (e) {
     console.error('Falha ao carregar modelo de contas fixas:', e);
@@ -191,9 +205,10 @@ export const loadStoredFixedTemplates = (): FixedBillTemplate[] => {
   }
 };
 
-export const saveStoredFixedTemplates = (templates: FixedBillTemplate[]) => {
+export const saveStoredFixedTemplates = (templates: FixedBillTemplate[], userId?: string | null) => {
   try {
-    localStorage.setItem(KEYS.FIXED_TEMPLATES, JSON.stringify(templates));
+    const key = getTemplatesKey(userId);
+    localStorage.setItem(key, JSON.stringify(templates));
   } catch (e) {
     console.error('Falha ao salvar modelo de contas fixas:', e);
   }
@@ -388,8 +403,8 @@ export const syncWithCloud = async (
     }));
 
     // Update local storage cache immediately with the unified data
-    saveStoredTransactions(unifiedTransactions);
-    saveStoredSalaries(mergedSalaries);
+    saveStoredTransactions(unifiedTransactions, userId);
+    saveStoredSalaries(mergedSalaries, userId);
 
     // 5. Sync credit cards (safe try-catch com deduplicação)
     let unifiedCards: CreditCardInfo[] = localCards || [];
@@ -467,7 +482,7 @@ export const syncWithCloud = async (
       }));
 
       unifiedCards = finalUniqueCards.length > 0 ? finalUniqueCards : DEFAULT_CREDIT_CARDS;
-      saveStoredCards(unifiedCards);
+      saveStoredCards(unifiedCards, userId);
     } catch (cardErr) {
       console.warn('Sync de cartões ignorado ou tabela não configurada:', cardErr);
     }
@@ -538,7 +553,7 @@ export const syncWithCloud = async (
         due_day: t.due_day,
         category: 'fixed',
       }));
-      saveStoredFixedTemplates(unifiedTemplates);
+      saveStoredFixedTemplates(unifiedTemplates, userId);
     } catch (tplErr) {
       console.warn('Sync de modelos fixos ignorado ou tabela não configurada:', tplErr);
     }

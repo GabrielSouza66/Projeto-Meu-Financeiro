@@ -141,52 +141,14 @@ export const DEFAULT_CREDIT_CARDS: CreditCardInfo[] = [
 export const getDefaultSalary = (monthRef: string): SalaryInfo => ({
   id: `sal-${monthRef}`,
   month_ref: monthRef,
-  base_salary: 5200.0,
+  base_salary: 0,
   extra_income: 0,
   payday: 5,
-  notes: 'Salário Líquido Mensal',
+  notes: '',
 });
 
-export const getDefaultTransactions = (monthRef: string): Transaction[] => {
-  const [year, month] = monthRef.split('-');
-  return [
-    {
-      id: generateUUID(),
-      title: 'Internet Residencial',
-      category: 'fixed',
-      account_type: 'Internet',
-      amount: 120.0,
-      due_date: `${year}-${month}-10`,
-      month_ref: monthRef,
-      status: 'paid',
-      notes: 'Fibra óptica',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: generateUUID(),
-      title: 'Plano Celular',
-      category: 'fixed',
-      account_type: 'Celular',
-      amount: 60.0,
-      due_date: `${year}-${month}-15`,
-      month_ref: monthRef,
-      status: 'paid',
-      notes: 'Pós-pago',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: generateUUID(),
-      title: 'Fatura Cartão de Crédito',
-      category: 'card',
-      account_type: 'Cartão de Crédito',
-      amount: 1850.0,
-      due_date: `${year}-${month}-22`,
-      month_ref: monthRef,
-      status: 'pending',
-      notes: 'Fatura fechada compras do mês',
-      created_at: new Date().toISOString(),
-    },
-  ];
+export const getDefaultTransactions = (_monthRef: string): Transaction[] => {
+  return [];
 };
 
 export const calculateSummary = (
@@ -223,13 +185,15 @@ export const calculateSummary = (
   const balanceForecast = totalIncome - totalExpenses;
   const balanceRealized = totalIncome - paidExpenses;
 
-  const commitmentRate = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 100;
+  const commitmentRate = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0;
 
   let alertLevel: 'comfortable' | 'warning' | 'danger' = 'comfortable';
-  if (commitmentRate >= 100 || balanceForecast < 0) {
-    alertLevel = 'danger';
-  } else if (commitmentRate >= 80) {
-    alertLevel = 'warning';
+  if (totalIncome > 0 || totalExpenses > 0) {
+    if (commitmentRate >= 100 || balanceForecast < 0) {
+      alertLevel = 'danger';
+    } else if (commitmentRate >= 80) {
+      alertLevel = 'warning';
+    }
   }
 
   return {

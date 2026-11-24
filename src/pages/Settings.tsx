@@ -129,9 +129,9 @@ export const Settings: React.FC = () => {
   };
 
   const handleResetData = () => {
-    if (confirm('Deseja restaurar os dados de exemplo padrão (Salário R$ 5.200, Contas Fixas e Cartões)?')) {
+    if (confirm('Deseja limpar todos os dados locais e redefinir para o estado inicial zerado?')) {
       resetToDefaultData();
-      alert('Dados restaurados para o modelo padrão!');
+      alert('Dados redefinidos com sucesso para o estado limpo e zerado!');
     }
   };
 

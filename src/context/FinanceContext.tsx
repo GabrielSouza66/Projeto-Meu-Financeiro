@@ -26,6 +26,7 @@ import {
   saveStoredCards,
   loadStoredFixedTemplates,
   saveStoredFixedTemplates,
+  clearUserStorage,
   syncWithCloud,
 } from '../services/storage';
 import { getSupabaseClient, getStoredSupabaseConfig } from '../services/supabase';
@@ -78,10 +79,10 @@ const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentMonth, setCurrentMonth] = useState<string>(getCurrentMonthRef());
-  const [transactions, setTransactions] = useState<Transaction[]>(loadStoredTransactions);
-  const [salaries, setSalaries] = useState<Record<string, SalaryInfo>>(loadStoredSalaries);
-  const [cards, setCards] = useState<CreditCardInfo[]>(loadStoredCards);
-  const [fixedTemplates, setFixedTemplates] = useState<FixedBillTemplate[]>(loadStoredFixedTemplates);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [salaries, setSalaries] = useState<Record<string, SalaryInfo>>({});
+  const [cards, setCards] = useState<CreditCardInfo[]>(() => loadStoredCards());
+  const [fixedTemplates, setFixedTemplates] = useState<FixedBillTemplate[]>(() => loadStoredFixedTemplates());
   
   // Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -123,22 +124,26 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     localStorage.setItem('meu_financeiro_theme', theme);
   }, [theme]);
 
-  // Save to localStorage when state changes
+  // Save to localStorage when state changes (scoped to user if authenticated)
   useEffect(() => {
-    saveStoredTransactions(transactions);
-  }, [transactions]);
+    if (user?.id) {
+      saveStoredTransactions(transactions, user.id);
+    }
+  }, [transactions, user]);
 
   useEffect(() => {
-    saveStoredSalaries(salaries);
-  }, [salaries]);
+    if (user?.id) {
+      saveStoredSalaries(salaries, user.id);
+    }
+  }, [salaries, user]);
 
   useEffect(() => {
-    saveStoredCards(cards);
-  }, [cards]);
+    saveStoredCards(cards, user?.id);
+  }, [cards, user]);
 
   useEffect(() => {
-    saveStoredFixedTemplates(fixedTemplates);
-  }, [fixedTemplates]);
+    saveStoredFixedTemplates(fixedTemplates, user?.id);
+  }, [fixedTemplates, user]);
 
   // Migração, saneamento e DEDUPLICAÇÃO rigorosa de cartões
   useEffect(() => {
@@ -250,19 +255,79 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   }, [transactions]);
 
-  // Check Supabase Auth session on mount
+  // Check Supabase Auth session on mount and load user data
   useEffect(() => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
 
+    const loadUserData = async (activeUser: any) => {
+      if (!activeUser) {
+        setTransactions([]);
+        setSalaries({});
+        clearUserStorage();
+        return;
+      }
+
+      // 1. Instant load from user-scoped local storage if present
+      const cachedTx = loadStoredTransactions(activeUser.id);
+      const cachedSal = loadStoredSalaries(activeUser.id);
+      const cachedCards = loadStoredCards(activeUser.id);
+      const cachedTemplates = loadStoredFixedTemplates(activeUser.id);
+
+      if (cachedTx.length > 0) setTransactions(cachedTx);
+      if (Object.keys(cachedSal).length > 0) setSalaries(cachedSal);
+      if (cachedCards.length > 0) setCards(cachedCards);
+      if (cachedTemplates.length > 0) setFixedTemplates(cachedTemplates);
+
+      // 2. Authoritative sync with Supabase cloud
+      try {
+        setSyncStatus('syncing');
+        setSyncMessage('Carregando dados da sua conta...');
+        const result = await syncWithCloud(activeUser.id, cachedTx, cachedSal, cachedCards, cachedTemplates);
+        if (result.success) {
+          if (result.transactions) setTransactions(result.transactions);
+          if (result.salaries) setSalaries(result.salaries);
+          if (result.cards && result.cards.length > 0) setCards(result.cards);
+          if (result.fixedTemplates && result.fixedTemplates.length > 0) setFixedTemplates(result.fixedTemplates);
+          setSyncStatus('idle');
+          setSyncMessage('');
+        } else {
+          setSyncStatus('idle');
+        }
+      } catch (e) {
+        console.error('Falha ao sincronizar dados do usuário:', e);
+        setSyncStatus('idle');
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
+      if (activeUser) {
+        loadUserData(activeUser);
+      } else {
+        setTransactions([]);
+        setSalaries({});
+        clearUserStorage();
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
+
+      if (event === 'SIGNED_IN' && activeUser) {
+        loadUserData(activeUser);
+      } else if (event === 'SIGNED_OUT') {
+        setTransactions([]);
+        setSalaries({});
+        clearUserStorage();
+        setSyncStatus('idle');
+        setSyncMessage('');
+      }
+
       if (event === 'PASSWORD_RECOVERY') {
         setAuthModalMode('reset');
         setIsAuthModalOpen(true);
@@ -290,7 +355,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
     // Fallback or copy from previous known salary if exists
     const allSalaries = Object.values(salaries);
-    const fallbackBase = allSalaries.length > 0 ? allSalaries[allSalaries.length - 1].base_salary : 5200;
+    const fallbackBase = allSalaries.length > 0 ? allSalaries[allSalaries.length - 1].base_salary : 0;
     return {
       ...getDefaultSalary(currentMonth),
       base_salary: fallbackBase,
@@ -635,24 +700,20 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const resetToDefaultData = () => {
-    const currentM = getCurrentMonthRef();
-    const defaultTx = getDefaultTransactions(currentM);
-    const defaultSal: Record<string, SalaryInfo> = {
-      [currentM]: getDefaultSalary(currentM),
-    };
-    setTransactions(defaultTx);
-    setSalaries(defaultSal);
+    setTransactions([]);
+    setSalaries({});
     setCards(DEFAULT_CREDIT_CARDS);
     setFixedTemplates(DEFAULT_FIXED_BILLS_TEMPLATES);
+    clearUserStorage();
   };
 
   const saveAndSync = async (): Promise<{ success: boolean; message: string }> => {
     try {
       // 1. Gravação local explícita imediata
-      saveStoredTransactions(transactions);
-      saveStoredSalaries(salaries);
-      saveStoredCards(cards);
-      saveStoredFixedTemplates(fixedTemplates);
+      saveStoredTransactions(transactions, user?.id);
+      saveStoredSalaries(salaries, user?.id);
+      saveStoredCards(cards, user?.id);
+      saveStoredFixedTemplates(fixedTemplates, user?.id);
 
       const now = new Date();
       setLastSavedAt(now);

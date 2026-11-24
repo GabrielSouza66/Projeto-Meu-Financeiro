@@ -19,8 +19,8 @@ export const SalaryModal: React.FC = () => {
 
   useEffect(() => {
     if (currentSalary) {
-      setBaseSalaryStr(String(currentSalary.base_salary));
-      setExtraIncomeStr(String(currentSalary.extra_income || 0));
+      setBaseSalaryStr(currentSalary.base_salary > 0 ? String(currentSalary.base_salary) : '');
+      setExtraIncomeStr(currentSalary.extra_income && currentSalary.extra_income > 0 ? String(currentSalary.extra_income) : '');
       setPayday(currentSalary.payday || 5);
       setNotes(currentSalary.notes || '');
     }
@@ -30,7 +30,7 @@ export const SalaryModal: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const base = parseFloat(baseSalaryStr.replace(',', '.'));
+    const base = parseFloat(baseSalaryStr.replace(',', '.') || '0');
     const extra = parseFloat(extraIncomeStr.replace(',', '.') || '0');
 
     if (isNaN(base) || base < 0) {
@@ -81,7 +81,7 @@ export const SalaryModal: React.FC = () => {
                 required
                 value={baseSalaryStr}
                 onChange={(e) => setBaseSalaryStr(e.target.value)}
-                placeholder="5200.00"
+                placeholder="0.00"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-base font-bold text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               />
             </div>
